@@ -25,7 +25,7 @@
         Jongho Kim<sup>1</sup>,
         Sangjun Byun<sup>1</sup>,
         Joonsik Park<sup>3</sup>, and
-        Seung Ah Lee<sup>1,2</sup>
+        <a href="#" class="copy-email" data-email="seungahlee@snu.ac.kr" title="Copy email address">Seung Ah Lee</a><sup>1,2</sup>
       </p>
       <p class="affiliations">
         <sup>1</sup>Seoul National University, Department of Mechanical Engineering<br>
@@ -37,7 +37,7 @@
         <a href="paper.html">Paper</a>
         <a href="supplement.html">Supplement</a>
         <a href="https://github.com/IIL-SNU/IFIN">Code</a>
-        <a href="https://iilab.io/SVLensless-dataset">Dataset</a>
+        <a href="https://iilab.io/WiderCam">Dataset</a>
       </nav>
     </div>
   </header>
@@ -47,10 +47,7 @@
       <div class="container text">
         <h2>Abstract</h2>
         <p>
-          Lensless imaging enables compact and versatile computational cameras by replacing bulky optics with thin coded elements. Reconstruction is challenging because large-footprint PSFs produce highly multiplexed observations, making inversion severely ill-conditioned and sensitive to calibration errors and model mismatch.
-        </p>
-        <p>
-          IFIN interleaves differentiable forward projections with learnable inverse updates at every stage, enabling measurement-domain and image-domain cues to refine each other throughout an encoder-decoder hierarchy. The same forward-inverse interleaving principle extends beyond lensless reconstruction to Gaussian deblurring and simulated inline holography.
+          Lensless imaging enables compact and versatile computational cameras by replacing bulky optics with thin coded elements. However, reconstruction from the resulting measurements is challenging: large-footprint PSFs produce highly multiplexed observations, making inversion severely ill-conditioned and sensitive to calibration errors and model mismatch. While deep learning approaches, including hybrid models that incorporate physics priors, have shown promise, explicitly maintaining data fidelity throughout the network hierarchy remains difficult. Here, we propose the Integrated Forward-Inverse Network (IFIN), a physics-guided architecture that interleaves differentiable forward projections with learnable inverse updates at every stage, enabling complementary cues to be exploited jointly in the measurement and image domains. This bidirectional coupling supports progressive, physics-consistent refinement and permits system-constrained PSF kernel adaptation under model uncertainty. On challenging lensless benchmarks, including a newly introduced dataset, IFIN achieves state-of-the-art reconstruction quality. We further observe competitive performance on Gaussian deblurring and simulated inline holography reconstruction, suggesting that the same interleaving principle can extend beyond lensless cameras.
         </p>
       </div>
     </section>
@@ -271,7 +268,7 @@
         <p>
           Because WiderCam does not use a separate reference camera, supervision is aligned offline. A deconvolution reconstruction is matched to the displayed target, an affine transform is estimated from the display-capture pair, and the label image is warped to define pixel-aligned supervision.
         </p>
-        <p class="dataset-link"><a href="https://iilab.io/SVLensless-dataset">Open dataset page</a></p>
+        <p class="dataset-link"><a href="https://iilab.io/WiderCam">Open dataset page</a></p>
         <div class="grid two">
           <figure>
             <img src="assets/images/camera.webp" alt="WiderCam camera and capture setup">
