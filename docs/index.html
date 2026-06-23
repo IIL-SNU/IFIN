@@ -8,7 +8,7 @@
   <meta property="og:type" content="article">
   <meta property="og:title" content="IFIN - Integrated Forward-Inverse Network">
   <meta property="og:description" content="Physics-guided lensless image reconstruction with forward-inverse interleaving. Accepted to ECCV 2026.">
-  <meta property="og:image" content="https://iilab.io/IFIN/assets/images/teaser.webp">
+  <meta property="og:image" content="https://iilab.io/IFIN/assets/images/widercam.webp">
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
@@ -17,7 +17,7 @@
       <h1>Integrated Forward-Inverse Network<br>for Lensless Image Reconstruction</h1>
       <p class="conference">ECCV 2026</p>
       <p class="authors">
-        Donggeon Bae<sup>1</sup>,
+        <a href="mailto:donggeonbae@snu.ac.kr">Donggeon Bae</a><sup>1</sup>,
         Jaewoo Jung<sup>2,3</sup>,
         Yong Guk Kang<sup>2</sup>,
         Kyung Chul Lee<sup>4</sup>,
@@ -37,18 +37,12 @@
         <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_paper.pdf">Paper</a>
         <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_supplementary.pdf">Supplement</a>
         <a href="https://github.com/IIL-SNU/IFIN">Code</a>
-        <a href="https://iilab.io/SVLensless-dataset">Dataset</a>
+        <a href="https://iilab.io/SVLensless-dataset">WiderCam</a>
       </nav>
     </div>
   </header>
 
   <main>
-    <section class="section figure-section">
-      <div class="container wide">
-        <img class="main-image" src="assets/images/teaser.webp" alt="IFIN lensless reconstruction teaser">
-      </div>
-    </section>
-
     <section id="abstract" class="section">
       <div class="container text">
         <h2>Abstract</h2>
@@ -56,7 +50,7 @@
           Lensless imaging enables compact and versatile computational cameras by replacing bulky optics with thin coded elements. Reconstruction is challenging because large-footprint PSFs produce highly multiplexed observations, making inversion severely ill-conditioned and sensitive to calibration errors and model mismatch.
         </p>
         <p>
-          We propose the Integrated Forward-Inverse Network (IFIN), a physics-guided architecture that interleaves differentiable forward projections with learnable inverse updates at every stage. This bidirectional coupling supports progressive, physics-consistent refinement and permits system-constrained PSF kernel refinement under model uncertainty. On challenging lensless benchmarks, including the newly introduced WiderCam dataset, IFIN achieves state-of-the-art reconstruction quality.
+          IFIN interleaves differentiable forward projections with learnable inverse updates at every stage, enabling measurement-domain and image-domain cues to refine each other throughout an encoder-decoder hierarchy. The same forward-inverse interleaving principle extends beyond lensless reconstruction to Gaussian deblurring and simulated inline holography.
         </p>
       </div>
     </section>
@@ -65,60 +59,21 @@
       <div class="container">
         <h2>Method</h2>
         <p class="section-summary">
-          IFIN maintains coupled measurement-domain and image-domain streams. At each scale, an Integrated Forward-Inverse Block exchanges information through a Forward System Operator, an Inverse System Operator, and a shared learnable PSF field.
+          IFIN maintains coupled measurement-domain and image-domain streams. Each Integrated Forward-Inverse Block exchanges information through a Forward System Operator, an Inverse System Operator, and a shared learnable PSF field.
+        </p>
+        <p>
+          The model is built around a simple design principle: do not invert the measurement once and then discard the raw measurement cues. Instead, IFIN repeatedly projects image-domain features forward to the measurement domain and applies inverse updates from the measurement stream back to the image stream, so both domains stay coupled across the hierarchy.
+        </p>
+        <p>
+          The learnable PSF field lets the same architecture handle calibration mismatch and field-dependent blur. In the shift-variant setting, multiple local PSFs are learned end-to-end and shared by the forward and inverse operators, giving the network a physically grounded way to adapt to different regions of the field of view.
         </p>
         <figure>
           <img src="assets/images/architecture.webp" alt="Overall architecture of IFIN">
-          <figcaption>Overall architecture of IFIN.</figcaption>
+          <figcaption>Overall architecture of IFIN. The network follows an encoder-decoder structure, where Integrated Forward-Inverse Blocks (IFIBs) are inserted at each scale to jointly apply the Forward System Operator (FSO) and Inverse System Operator (ISO). A shared learnable PSF field guides both operators, ensuring forward-inverse consistency across scales.</figcaption>
         </figure>
         <figure>
           <img src="assets/images/ifib.webp" alt="Integrated Forward-Inverse Block">
-          <figcaption>Forward-inverse exchange inside an IFIB.</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <section id="results" class="section">
-      <div class="container">
-        <h2>Results</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Dataset</th>
-                <th>Metric</th>
-                <th>Previous Best</th>
-                <th>IFIN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>DiffuserCam</td><td>PSNR</td><td>28.228</td><td><strong>29.862</strong></td></tr>
-              <tr><td>DiffuserCam</td><td>LPIPS</td><td>0.183</td><td><strong>0.174</strong></td></tr>
-              <tr><td>DiffuserCam</td><td>SSIM</td><td>0.878</td><td><strong>0.893</strong></td></tr>
-              <tr><td>WiderCam</td><td>PSNR</td><td>24.791</td><td><strong>25.444</strong></td></tr>
-              <tr><td>WiderCam</td><td>LPIPS</td><td>0.202</td><td><strong>0.201</strong></td></tr>
-              <tr><td>WiderCam</td><td>SSIM</td><td>0.810</td><td><strong>0.824</strong></td></tr>
-              <tr><td>MultiWienerNet</td><td>PSNR</td><td>28.504</td><td><strong>31.083</strong></td></tr>
-              <tr><td>MultiWienerNet</td><td>LPIPS</td><td>0.202</td><td><strong>0.175</strong></td></tr>
-              <tr><td>MultiWienerNet</td><td>SSIM</td><td>0.831</td><td><strong>0.866</strong></td></tr>
-            </tbody>
-          </table>
-        </div>
-        <figure>
-          <img src="assets/images/diffusercam.webp" alt="Visual comparison on DiffuserCam">
-          <figcaption>DiffuserCam display-capture reconstruction.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/images/widercam.webp" alt="Visual comparison on WiderCam">
-          <figcaption>WiderCam reconstruction under strong field-dependent degradation.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/images/mwnet.webp" alt="Visual comparison on MultiWienerNet">
-          <figcaption>MultiWienerNet reconstruction with simulated and experimental captures.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/images/inthewild.webp" alt="In-the-wild WiderCam reconstruction">
-          <figcaption>In-the-wild WiderCam captures without ground truth.</figcaption>
+          <figcaption>Integrated Forward-Inverse Block. The block pairs forward and inverse operators: in the single-PSF setting, FSO uses 2D convolution and ISO uses Wiener-like deconvolution; in the PSF-field setting, FSO uses a representative PSF while ISO applies region-wise deconvolution blended by learnable ROI maps.</figcaption>
         </figure>
       </div>
     </section>
@@ -127,50 +82,167 @@
       <div class="container">
         <h2>WiderCam Dataset</h2>
         <p class="section-summary">
-          WiderCam is a wide-field lensless reconstruction benchmark captured with a compact custom phase-mask camera. It contains 25,000 paired measurements, split into 24,000 training and 1,000 test images, and highlights strong shift-variant degradation across the field of view.
+          WiderCam is a wide-FoV lensless benchmark captured with a compact phase-mask camera. It contains 25,000 paired display-capture measurements, split into 24,000 training and 1,000 test images, and emphasizes strong field-dependent degradation near the image periphery.
         </p>
-        <p class="dataset-link"><a href="https://iilab.io/SVLensless-dataset">Open SVLensless / WiderCam dataset page</a></p>
+        <p>
+          The dataset was captured using a Sony IMX708 sensor module with a custom phase mask. MIRFlickr images were displayed on a 48-inch OLED screen at a 30 cm working distance, occupying roughly 80% of the display area. Raw measurements were captured at 4608 x 2592 and resized to 480 x 270 for training and evaluation.
+        </p>
+        <p>
+          Because WiderCam does not use a separate reference camera, supervision is aligned offline. A deconvolution reconstruction is matched to the displayed target, an affine transform is estimated from the display-capture pair, and the label image is warped to define pixel-aligned supervision.
+        </p>
+        <p class="dataset-link"><a href="https://iilab.io/SVLensless-dataset">Open WiderCam dataset page</a></p>
         <div class="grid two">
           <figure>
             <img src="assets/images/camera.webp" alt="WiderCam camera and capture setup">
-            <figcaption>Prototype lensless camera and capture setup.</figcaption>
+            <figcaption>Prototype lensless camera and dataset capture setup. The camera uses a CMOS sensor in a custom 3D-printed holder, and WiderCam pairs displayed reference images with lensless measurements recorded at a fixed display-capture geometry.</figcaption>
           </figure>
           <figure>
             <img src="assets/images/affine.webp" alt="Affine registration for WiderCam">
-            <figcaption>Affine registration for aligned supervision.</figcaption>
+            <figcaption>Affine registration for label and display-capture pairs. Feature correspondences are estimated between the displayed reference and a deconvolution reconstruction, then used to warp labels into pixel-wise alignment for supervised training and evaluation.</figcaption>
           </figure>
         </div>
         <figure>
           <img src="assets/images/mask_psf.webp" alt="Phase mask and PSF characterization">
-          <figcaption>Phase mask design and on/off-axis PSF characterization.</figcaption>
+          <figcaption>Phase mask design and PSF characterization. The figure shows the designed phase-mask pattern, representative profile, simulated on- and off-axis PSFs, and captured on- and off-axis PSFs, illustrating the shift variance induced by the compact high-resolution optics.</figcaption>
         </figure>
         <figure>
           <img src="assets/images/variant_deconv.webp" alt="Field-dependent deconvolution">
-          <figcaption>Field-dependent PSFs produce different reconstruction behavior across the image.</figcaption>
+          <figcaption>Field-dependent deconvolution with center and off-axis PSFs. Using different local PSFs changes sharpness at the image center and periphery, directly showing why a spatially varying PSF field is needed for WiderCam.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="lensless-results" class="section">
+      <div class="container">
+        <h2>Main Lensless Benchmarks</h2>
+        <p class="section-summary">
+          Quantitative comparison on DiffuserCam, WiderCam, and the MultiWienerNet dataset. PSNR and SSIM are higher-is-better; LPIPS is lower-is-better.
+        </p>
+        <p>
+          These three benchmarks cover complementary lensless settings: a widely used diffuser dataset, our wide-FoV phase-mask camera with strong shift variance, and a miniscope dataset with measured spatially varying PSFs. IFIN improves all reported metrics across all three.
+        </p>
+        <div class="table-wrap wide-table">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Method</th>
+                <th colspan="3">DiffuserCam</th>
+                <th colspan="3">WiderCam</th>
+                <th colspan="3">MultiWienerNet</th>
+              </tr>
+              <tr>
+                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
+                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
+                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>ADMM</td><td>12.252</td><td>0.607</td><td>0.346</td><td>11.843</td><td>0.643</td><td>0.323</td><td>19.189</td><td>0.557</td><td>0.420</td></tr>
+              <tr><td>Wiener Deconv.</td><td>12.552</td><td>0.591</td><td>0.384</td><td>12.405</td><td>0.607</td><td>0.369</td><td>18.658</td><td>0.640</td><td>0.302</td></tr>
+              <tr><td><strong>ISO (Ours)</strong></td><td>16.528</td><td>0.544</td><td>0.404</td><td>17.240</td><td>0.462</td><td>0.444</td><td>20.202</td><td>0.623</td><td>0.380</td></tr>
+              <tr><td>UNet</td><td>21.230</td><td>0.394</td><td>0.656</td><td>21.890</td><td>0.474</td><td>0.646</td><td>23.859</td><td>0.389</td><td>0.589</td></tr>
+              <tr><td>NAFNet</td><td>24.830</td><td>0.239</td><td>0.810</td><td>23.857</td><td>0.245</td><td>0.769</td><td>24.657</td><td>0.282</td><td>0.712</td></tr>
+              <tr><td>Le-ADMM-U</td><td>23.261</td><td>0.312</td><td>0.765</td><td>21.956</td><td>0.278</td><td>0.748</td><td>23.732</td><td>0.335</td><td>0.702</td></tr>
+              <tr><td>DeepLIR</td><td>25.958</td><td>0.260</td><td>0.829</td><td>20.523</td><td>0.339</td><td>0.642</td><td>22.556</td><td>0.379</td><td>0.642</td></tr>
+              <tr><td>MWNet</td><td>24.832</td><td>0.247</td><td>0.810</td><td>23.001</td><td>0.255</td><td>0.766</td><td>25.660</td><td>0.260</td><td>0.728</td></tr>
+              <tr><td>UPDN</td><td><u>28.228</u></td><td>0.194</td><td>0.877</td><td>23.920</td><td>0.229</td><td>0.801</td><td>24.364</td><td>0.287</td><td>0.707</td></tr>
+              <tr><td>MWDNs</td><td>27.298</td><td>0.217</td><td>0.845</td><td>24.525</td><td>0.224</td><td>0.801</td><td>27.436</td><td>0.236</td><td>0.780</td></tr>
+              <tr><td>LensNet</td><td>27.650</td><td>0.201</td><td>0.868</td><td>24.615</td><td>0.219</td><td>0.806</td><td>27.546</td><td>0.221</td><td>0.809</td></tr>
+              <tr><td>MoDL</td><td>27.958</td><td><u>0.183</u></td><td><u>0.878</u></td><td><u>24.791</u></td><td><u>0.202</u></td><td><u>0.810</u></td><td><u>28.504</u></td><td><u>0.202</u></td><td><u>0.831</u></td></tr>
+              <tr><td><strong>IFIN (Ours)</strong></td><td><strong>29.862</strong></td><td><strong>0.174</strong></td><td><strong>0.893</strong></td><td><strong>25.444</strong></td><td><strong>0.201</strong></td><td><strong>0.824</strong></td><td><strong>31.083</strong></td><td><strong>0.175</strong></td><td><strong>0.866</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure>
+          <img src="assets/images/diffusercam.webp" alt="Visual comparison on DiffuserCam">
+          <figcaption>Visual comparison on DiffuserCam display-capture data. IFIN preserves color fidelity and high-frequency textures while suppressing artifacts; insets mark zoomed regions and structures.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/widercam.webp" alt="Visual comparison on WiderCam">
+          <figcaption>Comparison on the WiderCam dataset. Compared with prior methods, IFIN mitigates field-dependent peripheral blur and geometric distortion while preserving fine textures and edges across the image.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/mwnet.webp" alt="Visual comparison on MultiWienerNet">
+          <figcaption>Comparison on the MWNet dataset. The first row shows simulated spatially variant measurements and reconstructions; the second row shows experimental miniscope captures of a USAF target.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/inthewild.webp" alt="In-the-wild WiderCam reconstruction">
+          <figcaption>In-the-wild WiderCam measurements. IFIN generalizes to diverse scenes and lighting, reducing ringing and color shifts while preserving edges and textures without paired ground truth.</figcaption>
         </figure>
       </div>
     </section>
 
     <section id="more-results" class="section">
       <div class="container">
-        <h2>More Results</h2>
+        <h2>Additional Lensless Visual Results</h2>
+        <p class="section-summary">
+          Additional qualitative comparisons show the same pattern across more scenes: IFIN better preserves fine structures and reduces model-mismatch artifacts across both diffuser and wide-FoV phase-mask captures.
+        </p>
         <div class="grid two tall">
           <figure>
             <img src="assets/images/more_diffusercam.webp" alt="Additional DiffuserCam results">
-            <figcaption>Additional DiffuserCam visual comparisons.</figcaption>
+            <figcaption>Additional qualitative comparison on the DiffuserCam dataset.</figcaption>
           </figure>
           <figure>
             <img src="assets/images/more_widercam.webp" alt="Additional WiderCam results">
-            <figcaption>Additional WiderCam visual comparisons.</figcaption>
+            <figcaption>Additional qualitative comparison on the WiderCam dataset.</figcaption>
           </figure>
         </div>
-        <figure>
-          <img src="assets/images/roi_recon.webp" alt="Region-wise reconstruction and ROI maps">
-          <figcaption>Region-wise reconstruction behavior with PSF-field blending.</figcaption>
-        </figure>
+      </div>
+    </section>
+
+    <section id="beyond-lensless" class="section">
+      <div class="container">
+        <h2>Beyond Lensless Imaging</h2>
+        <p class="section-summary">
+          The same interleaving principle is tested on Gaussian deblurring and simulated inline holography by swapping the physical operators to match each forward model.
+        </p>
+        <p>
+          For Gaussian deblurring, IFIN uses convolution/deconvolution operators with Gaussian kernels. For inline holography, the PSF modules are replaced by angular-spectrum forward propagation and matching back-propagation, while the forward-inverse exchange mechanism is retained.
+        </p>
+        <h3>Gaussian Deblurring</h3>
+        <div class="table-wrap wide-table">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Method</th>
+                <th colspan="3">sigma = 5</th>
+                <th colspan="3">sigma = 10</th>
+                <th colspan="3">sigma = 15</th>
+              </tr>
+              <tr>
+                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
+                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
+                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>RCAN</td><td><u>25.303</u></td><td><u>0.220</u></td><td><u>0.810</u></td><td>22.623</td><td><u>0.330</u></td><td><u>0.750</u></td><td>21.280</td><td>0.355</td><td>0.711</td></tr>
+              <tr><td>NAFNet</td><td><strong>25.625</strong></td><td><strong>0.205</strong></td><td><strong>0.825</strong></td><td><strong>22.810</strong></td><td><strong>0.315</strong></td><td><strong>0.766</strong></td><td><u>21.535</u></td><td><u>0.345</u></td><td><u>0.715</u></td></tr>
+              <tr><td><strong>IFIN (Ours)</strong></td><td>25.100</td><td>0.230</td><td>0.800</td><td><u>22.732</u></td><td>0.337</td><td>0.741</td><td><strong>21.654</strong></td><td><strong>0.340</strong></td><td><strong>0.721</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Inline Holography Reconstruction</h3>
+        <p>
+          In the inline holography benchmark, IFIN reconstructs amplitude-only objects from simulated intensity holograms generated at z = 30 mm and wavelength 532 nm. The result indicates that the architecture is not tied to a single lensless camera model.
+        </p>
+        <div class="table-wrap compact-table">
+          <table>
+            <thead>
+              <tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>RCAN</td><td>23.764</td><td>0.354</td><td>0.702</td></tr>
+              <tr><td>NAFNet</td><td>23.224</td><td>0.389</td><td>0.634</td></tr>
+              <tr><td>NAFNet+</td><td><u>25.751</u></td><td><u>0.242</u></td><td><u>0.817</u></td></tr>
+              <tr><td><strong>IFIN (Ours)</strong></td><td><strong>28.302</strong></td><td><strong>0.166</strong></td><td><strong>0.890</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
         <figure>
           <img src="assets/images/inline.webp" alt="Inline holography reconstruction">
-          <figcaption>Extension to simulated inline holography reconstruction.</figcaption>
+          <figcaption>Reconstruction results for the inline holography benchmark. From left to right: input intensity hologram, reconstructed object amplitude by each method, and ground-truth object amplitude. IFIN adapts to the holographic forward model and recovers cleaner object structures from a single hologram.</figcaption>
         </figure>
       </div>
     </section>
@@ -202,7 +274,7 @@ python train.py --config configs/default.yaml</code></pre>
 
   <footer>
     <div class="container">
-      Other datasets, checkpoints, and additional code are available by email:
+      For access to additional datasets, checkpoints, or code, please contact
       <a href="mailto:donggeonbae@snu.ac.kr">donggeonbae@snu.ac.kr</a>.
     </div>
   </footer>
