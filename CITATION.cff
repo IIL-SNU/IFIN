@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use IFIN, please cite our ECCV 2026 paper."
+type: software
+title: "Integrated Forward-Inverse Network for Lensless Image Reconstruction"
+authors:
+  - family-names: Bae
+    given-names: Donggeon
+  - family-names: Jung
+    given-names: Jaewoo
+  - family-names: Kang
+    given-names: Yong Guk
+  - family-names: Lee
+    given-names: Kyung Chul
+  - family-names: Kim
+    given-names: Taeyoung
+  - family-names: Kim
+    given-names: Jongho
+  - family-names: Byun
+    given-names: Sangjun
+  - family-names: Park
+    given-names: Joonsik
+  - family-names: Lee
+    given-names: Seung Ah
+repository-code: "https://github.com/IIL-SNU/IFIN"
+url: "https://iil-snu.github.io/IFIN/"
+preferred-citation:
+  type: conference-paper
+  title: "Integrated Forward-Inverse Network for Lensless Image Reconstruction"
+  authors:
+    - family-names: Bae
+      given-names: Donggeon
+    - family-names: Jung
+      given-names: Jaewoo
+    - family-names: Kang
+      given-names: Yong Guk
+    - family-names: Lee
+      given-names: Kyung Chul
+    - family-names: Kim
+      given-names: Taeyoung
+    - family-names: Kim
+      given-names: Jongho
+    - family-names: Byun
+      given-names: Sangjun
+    - family-names: Park
+      given-names: Joonsik
+    - family-names: Lee
+      given-names: Seung Ah
+  conference: "European Conference on Computer Vision"
+  year: 2026
