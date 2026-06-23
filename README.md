@@ -4,7 +4,7 @@
 
 **Accepted to ECCV 2026**
 
-[Donggeon Bae](mailto:donggeonbae@snu.ac.kr)<sup>1</sup>, Jaewoo Jung<sup>2,3</sup>, Yong Guk Kang<sup>2</sup>, Kyung Chul Lee<sup>4</sup>, Taeyoung Kim<sup>3</sup>, Jongho Kim<sup>1</sup>, Sangjun Byun<sup>1</sup>, Joonsik Park<sup>3</sup>, Seung Ah Lee<sup>1,2</sup>
+Donggeon Bae<sup>1</sup>, Jaewoo Jung<sup>2,3</sup>, Yong Guk Kang<sup>2</sup>, Kyung Chul Lee<sup>4</sup>, Taeyoung Kim<sup>3</sup>, Jongho Kim<sup>1</sup>, Sangjun Byun<sup>1</sup>, Joonsik Park<sup>3</sup>, and Seung Ah Lee<sup>1,2</sup>
 
 <sup>1</sup>Seoul National University, Department of Mechanical Engineering<br>
 <sup>2</sup>Seoul National University, School of Mechanical and Aerospace Engineering/SNU-IAMD<br>
@@ -13,9 +13,9 @@
 
 <p>
   <a href="https://iilab.io/IFIN/"><img src="https://img.shields.io/badge/Project-Page-315c5f" alt="Project page"></a>
-  <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_paper.pdf"><img src="https://img.shields.io/badge/Paper-PDF-bb4b4b" alt="Paper PDF"></a>
-  <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_supplementary.pdf"><img src="https://img.shields.io/badge/Supplement-PDF-6b5f2a" alt="Supplement PDF"></a>
-  <a href="https://iilab.io/SVLensless-dataset"><img src="https://img.shields.io/badge/WiderCam-Dataset-4d6f3b" alt="WiderCam dataset"></a>
+  <a href="https://iilab.io/IFIN/paper.html"><img src="https://img.shields.io/badge/Paper-PDF-bb4b4b" alt="Paper PDF"></a>
+  <a href="https://iilab.io/IFIN/supplement.html"><img src="https://img.shields.io/badge/Supplement-PDF-6b5f2a" alt="Supplement PDF"></a>
+  <a href="https://iilab.io/SVLensless-dataset"><img src="https://img.shields.io/badge/Dataset-Page-4d6f3b" alt="Dataset"></a>
 </p>
 
 </div>
@@ -46,21 +46,59 @@ Rather than applying a single inversion and then relying only on learned refinem
 
 IFIN improves reconstruction quality across three lensless benchmarks: DiffuserCam, WiderCam, and the MultiWienerNet dataset.
 
-| Method | DiffuserCam PSNR | DiffuserCam LPIPS | DiffuserCam SSIM | WiderCam PSNR | WiderCam LPIPS | WiderCam SSIM | MultiWienerNet PSNR | MultiWienerNet LPIPS | MultiWienerNet SSIM |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| ADMM | 12.252 | 0.607 | 0.346 | 11.843 | 0.643 | 0.323 | 19.189 | 0.557 | 0.420 |
-| Wiener Deconv. | 12.552 | 0.591 | 0.384 | 12.405 | 0.607 | 0.369 | 18.658 | 0.640 | 0.302 |
-| **ISO (Ours)** | 16.528 | 0.544 | 0.404 | 17.240 | 0.462 | 0.444 | 20.202 | 0.623 | 0.380 |
-| UNet | 21.230 | 0.394 | 0.656 | 21.890 | 0.474 | 0.646 | 23.859 | 0.389 | 0.589 |
-| NAFNet | 24.830 | 0.239 | 0.810 | 23.857 | 0.245 | 0.769 | 24.657 | 0.282 | 0.712 |
-| Le-ADMM-U | 23.261 | 0.312 | 0.765 | 21.956 | 0.278 | 0.748 | 23.732 | 0.335 | 0.702 |
-| DeepLIR | 25.958 | 0.260 | 0.829 | 20.523 | 0.339 | 0.642 | 22.556 | 0.379 | 0.642 |
-| MWNet | 24.832 | 0.247 | 0.810 | 23.001 | 0.255 | 0.766 | 25.660 | 0.260 | 0.728 |
-| UPDN | <u>28.228</u> | 0.194 | 0.877 | 23.920 | 0.229 | 0.801 | 24.364 | 0.287 | 0.707 |
-| MWDNs | 27.298 | 0.217 | 0.845 | 24.525 | 0.224 | 0.801 | 27.436 | 0.236 | 0.780 |
-| LensNet | 27.650 | 0.201 | 0.868 | 24.615 | 0.219 | 0.806 | 27.546 | 0.221 | 0.809 |
-| MoDL | 27.958 | <u>0.183</u> | <u>0.878</u> | <u>24.791</u> | <u>0.202</u> | <u>0.810</u> | <u>28.504</u> | <u>0.202</u> | <u>0.831</u> |
-| **IFIN (Ours)** | **29.862** | **0.174** | **0.893** | **25.444** | **0.201** | **0.824** | **31.083** | **0.175** | **0.866** |
+### DiffuserCam
+
+| Method | PSNR | LPIPS | SSIM |
+| --- | ---: | ---: | ---: |
+| [ADMM](https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf) | 12.252 | 0.607 | 0.346 |
+| [Wiener Deconv.](https://mitpress.mit.edu/9780262730051/extrapolation-interpolation-and-smoothing-of-stationary-time-series/) | 12.552 | 0.591 | 0.384 |
+| **ISO (Ours)** | 16.528 | 0.544 | 0.404 |
+| [UNet](https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/) | 21.230 | 0.394 | 0.656 |
+| [NAFNet](https://github.com/megvii-research/NAFNet) | 24.830 | 0.239 | 0.810 |
+| [Le-ADMM-U](https://waller-lab.github.io/LenslessLearning/) | 23.261 | 0.312 | 0.765 |
+| [DeepLIR](https://github.com/arpanpoudel/lenslessimaging) | 25.958 | 0.260 | 0.829 |
+| [MWNet](https://waller-lab.github.io/MultiWienerNet/) | 24.832 | 0.247 | 0.810 |
+| [UPDN](https://doi.org/10.1364/OE.475521) | <u>28.228</u> | 0.194 | 0.877 |
+| [MWDNs](https://doi.org/10.1364/OE.501970) | 27.298 | 0.217 | 0.845 |
+| [LensNet](https://arxiv.org/abs/2505.01755) | 27.650 | 0.201 | 0.868 |
+| [MoDL](https://doi.org/10.1109/TCI.2025.3539448) | 27.958 | <u>0.183</u> | <u>0.878</u> |
+| **IFIN (Ours)** | **29.862** | **0.174** | **0.893** |
+
+### WiderCam
+
+| Method | PSNR | LPIPS | SSIM |
+| --- | ---: | ---: | ---: |
+| [ADMM](https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf) | 11.843 | 0.643 | 0.323 |
+| [Wiener Deconv.](https://mitpress.mit.edu/9780262730051/extrapolation-interpolation-and-smoothing-of-stationary-time-series/) | 12.405 | 0.607 | 0.369 |
+| **ISO (Ours)** | 17.240 | 0.462 | 0.444 |
+| [UNet](https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/) | 21.890 | 0.474 | 0.646 |
+| [NAFNet](https://github.com/megvii-research/NAFNet) | 23.857 | 0.245 | 0.769 |
+| [Le-ADMM-U](https://waller-lab.github.io/LenslessLearning/) | 21.956 | 0.278 | 0.748 |
+| [DeepLIR](https://github.com/arpanpoudel/lenslessimaging) | 20.523 | 0.339 | 0.642 |
+| [MWNet](https://waller-lab.github.io/MultiWienerNet/) | 23.001 | 0.255 | 0.766 |
+| [UPDN](https://doi.org/10.1364/OE.475521) | 23.920 | 0.229 | 0.801 |
+| [MWDNs](https://doi.org/10.1364/OE.501970) | 24.525 | 0.224 | 0.801 |
+| [LensNet](https://arxiv.org/abs/2505.01755) | 24.615 | 0.219 | 0.806 |
+| [MoDL](https://doi.org/10.1109/TCI.2025.3539448) | <u>24.791</u> | <u>0.202</u> | <u>0.810</u> |
+| **IFIN (Ours)** | **25.444** | **0.201** | **0.824** |
+
+### MultiWienerNet
+
+| Method | PSNR | LPIPS | SSIM |
+| --- | ---: | ---: | ---: |
+| [ADMM](https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf) | 19.189 | 0.557 | 0.420 |
+| [Wiener Deconv.](https://mitpress.mit.edu/9780262730051/extrapolation-interpolation-and-smoothing-of-stationary-time-series/) | 18.658 | 0.640 | 0.302 |
+| **ISO (Ours)** | 20.202 | 0.623 | 0.380 |
+| [UNet](https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/) | 23.859 | 0.389 | 0.589 |
+| [NAFNet](https://github.com/megvii-research/NAFNet) | 24.657 | 0.282 | 0.712 |
+| [Le-ADMM-U](https://waller-lab.github.io/LenslessLearning/) | 23.732 | 0.335 | 0.702 |
+| [DeepLIR](https://github.com/arpanpoudel/lenslessimaging) | 22.556 | 0.379 | 0.642 |
+| [MWNet](https://waller-lab.github.io/MultiWienerNet/) | 25.660 | 0.260 | 0.728 |
+| [UPDN](https://doi.org/10.1364/OE.475521) | 24.364 | 0.287 | 0.707 |
+| [MWDNs](https://doi.org/10.1364/OE.501970) | 27.436 | 0.236 | 0.780 |
+| [LensNet](https://arxiv.org/abs/2505.01755) | 27.546 | 0.221 | 0.809 |
+| [MoDL](https://doi.org/10.1109/TCI.2025.3539448) | <u>28.504</u> | <u>0.202</u> | <u>0.831</u> |
+| **IFIN (Ours)** | **31.083** | **0.175** | **0.866** |
 
 <img src="docs/assets/images/diffusercam.webp" alt="DiffuserCam reconstruction comparison" width="100%">
 
@@ -82,22 +120,14 @@ IFIN also transfers to simulated inline holography reconstruction by replacing t
 
 | Method | PSNR | LPIPS | SSIM |
 | --- | ---: | ---: | ---: |
-| RCAN | 23.764 | 0.354 | 0.702 |
-| NAFNet | 23.224 | 0.389 | 0.634 |
-| NAFNet+ | <u>25.751</u> | <u>0.242</u> | <u>0.817</u> |
+| [RCAN](https://github.com/yulunzhang/RCAN) | 23.764 | 0.354 | 0.702 |
+| [NAFNet](https://github.com/megvii-research/NAFNet) | 23.224 | 0.389 | 0.634 |
+| [NAFNet+](https://github.com/megvii-research/NAFNet) | <u>25.751</u> | <u>0.242</u> | <u>0.817</u> |
 | **IFIN (Ours)** | **28.302** | **0.166** | **0.890** |
 
 <img src="docs/assets/images/inline.webp" alt="Inline holography reconstruction" width="100%">
 
 <p align="center"><sub>Inline holography reconstruction. IFIN adapts to the holographic forward model and recovers cleaner object structures from a single intensity hologram.</sub></p>
-
-## WiderCam Dataset
-
-We introduce **WiderCam**, a wide-field lensless reconstruction benchmark captured with a compact phase-mask camera. The dataset contains 25,000 paired measurements, split into 24,000 training and 1,000 test images, with strong field-dependent degradation over a wide field of view. Raw measurements are captured at 4608 x 2592 using a Sony IMX708 sensor and resized to 480 x 270; supervision is affine-aligned offline from the display-capture pair.
-
-WiderCam is available here:
-
-**Dataset:** [WiderCam dataset page](https://iilab.io/SVLensless-dataset)
 
 ## Installation
 
@@ -151,6 +181,12 @@ dataset_root/
   ground_truth_lensed/
   psf.tiff
 ```
+
+## WiderCam Dataset
+
+We introduce **WiderCam**, a wide-field lensless reconstruction benchmark captured with a compact phase-mask camera. The dataset contains 25,000 paired measurements, split into 24,000 training and 1,000 test images, with strong field-dependent degradation over a wide field of view. Raw measurements are captured at 4608 x 2592 using a Sony IMX708 sensor and resized to 480 x 270; supervision is affine-aligned offline from the display-capture pair.
+
+**Dataset:** [Dataset page](https://iilab.io/SVLensless-dataset)
 
 ## Citation
 

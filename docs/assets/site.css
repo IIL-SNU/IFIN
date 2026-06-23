@@ -23,6 +23,11 @@ body {
   line-height: 1.55;
 }
 
+body.pdf-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
 a {
   color: var(--link);
   text-decoration: none;
@@ -154,22 +159,22 @@ figcaption {
 }
 
 .table-wrap {
-  overflow-x: auto;
   margin: 15px 0 20px;
 }
 
 table {
   width: 100%;
-  min-width: 1020px;
   border-collapse: collapse;
-  font-size: 13px;
+  table-layout: fixed;
+  font-size: 12px;
 }
 
 th,
 td {
-  padding: 8px 10px;
+  padding: 6px 6px;
   border: 1px solid var(--line);
   text-align: center;
+  vertical-align: middle;
 }
 
 th {
@@ -180,6 +185,7 @@ th {
 td:first-child,
 th:first-child {
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 td strong {
@@ -188,11 +194,26 @@ td strong {
 
 .results-table th,
 .results-table td {
-  padding: 7px 8px;
+  padding: 6px 6px;
 }
 
-.compact-table table {
-  min-width: 520px;
+.table-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 15px 0 20px;
+}
+
+.metric-table h3 {
+  margin: 0 0 7px;
+  color: #555555;
+  font-size: 15px;
+  text-align: center;
+}
+
+.metric-table th:first-child,
+.metric-table td:first-child {
+  width: 38%;
 }
 
 .grid {
@@ -238,6 +259,25 @@ footer {
   text-align: center;
 }
 
+.pdf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 46px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pdf-page iframe {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 46px);
+  border: 0;
+}
+
 @media (max-width: 700px) {
   .paper-header {
     padding-top: 30px;
@@ -267,5 +307,20 @@ footer {
 
   .grid.two {
     grid-template-columns: 1fr;
+  }
+
+  .table-grid {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  th,
+  td,
+  .results-table th,
+  .results-table td {
+    padding: 5px 5px;
   }
 }

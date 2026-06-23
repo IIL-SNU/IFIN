@@ -17,14 +17,14 @@
       <h1>Integrated Forward-Inverse Network<br>for Lensless Image Reconstruction</h1>
       <p class="conference">ECCV 2026</p>
       <p class="authors">
-        <a href="mailto:donggeonbae@snu.ac.kr">Donggeon Bae</a><sup>1</sup>,
+        <a href="#" class="copy-email" data-email="donggeonbae@snu.ac.kr" title="Copy email address">Donggeon Bae</a><sup>1</sup>,
         Jaewoo Jung<sup>2,3</sup>,
         Yong Guk Kang<sup>2</sup>,
         Kyung Chul Lee<sup>4</sup>,
         Taeyoung Kim<sup>3</sup>,
         Jongho Kim<sup>1</sup>,
         Sangjun Byun<sup>1</sup>,
-        Joonsik Park<sup>3</sup>,
+        Joonsik Park<sup>3</sup>, and
         Seung Ah Lee<sup>1,2</sup>
       </p>
       <p class="affiliations">
@@ -34,10 +34,10 @@
         <sup>4</sup>University of Michigan, Department of Biomedical Engineering
       </p>
       <nav class="buttons" aria-label="Project links">
-        <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_paper.pdf">Paper</a>
-        <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_supplementary.pdf">Supplement</a>
+        <a href="paper.html">Paper</a>
+        <a href="supplement.html">Supplement</a>
         <a href="https://github.com/IIL-SNU/IFIN">Code</a>
-        <a href="https://iilab.io/SVLensless-dataset">WiderCam</a>
+        <a href="https://iilab.io/SVLensless-dataset">Dataset</a>
       </nav>
     </div>
   </header>
@@ -78,40 +78,6 @@
       </div>
     </section>
 
-    <section id="widercam" class="section">
-      <div class="container">
-        <h2>WiderCam Dataset</h2>
-        <p class="section-summary">
-          WiderCam is a wide-FoV lensless benchmark captured with a compact phase-mask camera. It contains 25,000 paired display-capture measurements, split into 24,000 training and 1,000 test images, and emphasizes strong field-dependent degradation near the image periphery.
-        </p>
-        <p>
-          The dataset was captured using a Sony IMX708 sensor module with a custom phase mask. MIRFlickr images were displayed on a 48-inch OLED screen at a 30 cm working distance, occupying roughly 80% of the display area. Raw measurements were captured at 4608 x 2592 and resized to 480 x 270 for training and evaluation.
-        </p>
-        <p>
-          Because WiderCam does not use a separate reference camera, supervision is aligned offline. A deconvolution reconstruction is matched to the displayed target, an affine transform is estimated from the display-capture pair, and the label image is warped to define pixel-aligned supervision.
-        </p>
-        <p class="dataset-link"><a href="https://iilab.io/SVLensless-dataset">Open WiderCam dataset page</a></p>
-        <div class="grid two">
-          <figure>
-            <img src="assets/images/camera.webp" alt="WiderCam camera and capture setup">
-            <figcaption>Prototype lensless camera and dataset capture setup. The camera uses a CMOS sensor in a custom 3D-printed holder, and WiderCam pairs displayed reference images with lensless measurements recorded at a fixed display-capture geometry.</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/images/affine.webp" alt="Affine registration for WiderCam">
-            <figcaption>Affine registration for label and display-capture pairs. Feature correspondences are estimated between the displayed reference and a deconvolution reconstruction, then used to warp labels into pixel-wise alignment for supervised training and evaluation.</figcaption>
-          </figure>
-        </div>
-        <figure>
-          <img src="assets/images/mask_psf.webp" alt="Phase mask and PSF characterization">
-          <figcaption>Phase mask design and PSF characterization. The figure shows the designed phase-mask pattern, representative profile, simulated on- and off-axis PSFs, and captured on- and off-axis PSFs, illustrating the shift variance induced by the compact high-resolution optics.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/images/variant_deconv.webp" alt="Field-dependent deconvolution">
-          <figcaption>Field-dependent deconvolution with center and off-axis PSFs. Using different local PSFs changes sharpness at the image center and periphery, directly showing why a spatially varying PSF field is needed for WiderCam.</figcaption>
-        </figure>
-      </div>
-    </section>
-
     <section id="lensless-results" class="section">
       <div class="container">
         <h2>Main Lensless Benchmarks</h2>
@@ -121,37 +87,70 @@
         <p>
           These three benchmarks cover complementary lensless settings: a widely used diffuser dataset, our wide-FoV phase-mask camera with strong shift variance, and a miniscope dataset with measured spatially varying PSFs. IFIN improves all reported metrics across all three.
         </p>
-        <div class="table-wrap wide-table">
-          <table class="results-table">
-            <thead>
-              <tr>
-                <th rowspan="2">Method</th>
-                <th colspan="3">DiffuserCam</th>
-                <th colspan="3">WiderCam</th>
-                <th colspan="3">MultiWienerNet</th>
-              </tr>
-              <tr>
-                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
-                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
-                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>ADMM</td><td>12.252</td><td>0.607</td><td>0.346</td><td>11.843</td><td>0.643</td><td>0.323</td><td>19.189</td><td>0.557</td><td>0.420</td></tr>
-              <tr><td>Wiener Deconv.</td><td>12.552</td><td>0.591</td><td>0.384</td><td>12.405</td><td>0.607</td><td>0.369</td><td>18.658</td><td>0.640</td><td>0.302</td></tr>
-              <tr><td><strong>ISO (Ours)</strong></td><td>16.528</td><td>0.544</td><td>0.404</td><td>17.240</td><td>0.462</td><td>0.444</td><td>20.202</td><td>0.623</td><td>0.380</td></tr>
-              <tr><td>UNet</td><td>21.230</td><td>0.394</td><td>0.656</td><td>21.890</td><td>0.474</td><td>0.646</td><td>23.859</td><td>0.389</td><td>0.589</td></tr>
-              <tr><td>NAFNet</td><td>24.830</td><td>0.239</td><td>0.810</td><td>23.857</td><td>0.245</td><td>0.769</td><td>24.657</td><td>0.282</td><td>0.712</td></tr>
-              <tr><td>Le-ADMM-U</td><td>23.261</td><td>0.312</td><td>0.765</td><td>21.956</td><td>0.278</td><td>0.748</td><td>23.732</td><td>0.335</td><td>0.702</td></tr>
-              <tr><td>DeepLIR</td><td>25.958</td><td>0.260</td><td>0.829</td><td>20.523</td><td>0.339</td><td>0.642</td><td>22.556</td><td>0.379</td><td>0.642</td></tr>
-              <tr><td>MWNet</td><td>24.832</td><td>0.247</td><td>0.810</td><td>23.001</td><td>0.255</td><td>0.766</td><td>25.660</td><td>0.260</td><td>0.728</td></tr>
-              <tr><td>UPDN</td><td><u>28.228</u></td><td>0.194</td><td>0.877</td><td>23.920</td><td>0.229</td><td>0.801</td><td>24.364</td><td>0.287</td><td>0.707</td></tr>
-              <tr><td>MWDNs</td><td>27.298</td><td>0.217</td><td>0.845</td><td>24.525</td><td>0.224</td><td>0.801</td><td>27.436</td><td>0.236</td><td>0.780</td></tr>
-              <tr><td>LensNet</td><td>27.650</td><td>0.201</td><td>0.868</td><td>24.615</td><td>0.219</td><td>0.806</td><td>27.546</td><td>0.221</td><td>0.809</td></tr>
-              <tr><td>MoDL</td><td>27.958</td><td><u>0.183</u></td><td><u>0.878</u></td><td><u>24.791</u></td><td><u>0.202</u></td><td><u>0.810</u></td><td><u>28.504</u></td><td><u>0.202</u></td><td><u>0.831</u></td></tr>
-              <tr><td><strong>IFIN (Ours)</strong></td><td><strong>29.862</strong></td><td><strong>0.174</strong></td><td><strong>0.893</strong></td><td><strong>25.444</strong></td><td><strong>0.201</strong></td><td><strong>0.824</strong></td><td><strong>31.083</strong></td><td><strong>0.175</strong></td><td><strong>0.866</strong></td></tr>
-            </tbody>
-          </table>
+        <div class="table-grid">
+          <div class="metric-table">
+            <h3>DiffuserCam</h3>
+            <table class="results-table">
+              <thead><tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr></thead>
+              <tbody>
+                <tr><td><a href="https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf">ADMM</a></td><td>12.252</td><td>0.607</td><td>0.346</td></tr>
+                <tr><td><a href="https://mitpress.mit.edu/9780262730051/extrapolation-interpolation-and-smoothing-of-stationary-time-series/">Wiener Deconv.</a></td><td>12.552</td><td>0.591</td><td>0.384</td></tr>
+                <tr><td><strong>ISO (Ours)</strong></td><td>16.528</td><td>0.544</td><td>0.404</td></tr>
+                <tr><td><a href="https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/">UNet</a></td><td>21.230</td><td>0.394</td><td>0.656</td></tr>
+                <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td>24.830</td><td>0.239</td><td>0.810</td></tr>
+                <tr><td><a href="https://waller-lab.github.io/LenslessLearning/">Le-ADMM-U</a></td><td>23.261</td><td>0.312</td><td>0.765</td></tr>
+                <tr><td><a href="https://github.com/arpanpoudel/lenslessimaging">DeepLIR</a></td><td>25.958</td><td>0.260</td><td>0.829</td></tr>
+                <tr><td><a href="https://waller-lab.github.io/MultiWienerNet/">MWNet</a></td><td>24.832</td><td>0.247</td><td>0.810</td></tr>
+                <tr><td><a href="https://doi.org/10.1364/OE.475521">UPDN</a></td><td><u>28.228</u></td><td>0.194</td><td>0.877</td></tr>
+                <tr><td><a href="https://doi.org/10.1364/OE.501970">MWDNs</a></td><td>27.298</td><td>0.217</td><td>0.845</td></tr>
+                <tr><td><a href="https://arxiv.org/abs/2505.01755">LensNet</a></td><td>27.650</td><td>0.201</td><td>0.868</td></tr>
+                <tr><td><a href="https://doi.org/10.1109/TCI.2025.3539448">MoDL</a></td><td>27.958</td><td><u>0.183</u></td><td><u>0.878</u></td></tr>
+                <tr><td><strong>IFIN (Ours)</strong></td><td><strong>29.862</strong></td><td><strong>0.174</strong></td><td><strong>0.893</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="metric-table">
+            <h3>WiderCam</h3>
+            <table class="results-table">
+              <thead><tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr></thead>
+              <tbody>
+                <tr><td><a href="https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf">ADMM</a></td><td>11.843</td><td>0.643</td><td>0.323</td></tr>
+                <tr><td><a href="https://mitpress.mit.edu/9780262730051/extrapolation-interpolation-and-smoothing-of-stationary-time-series/">Wiener Deconv.</a></td><td>12.405</td><td>0.607</td><td>0.369</td></tr>
+                <tr><td><strong>ISO (Ours)</strong></td><td>17.240</td><td>0.462</td><td>0.444</td></tr>
+                <tr><td><a href="https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/">UNet</a></td><td>21.890</td><td>0.474</td><td>0.646</td></tr>
+                <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td>23.857</td><td>0.245</td><td>0.769</td></tr>
+                <tr><td><a href="https://waller-lab.github.io/LenslessLearning/">Le-ADMM-U</a></td><td>21.956</td><td>0.278</td><td>0.748</td></tr>
+                <tr><td><a href="https://github.com/arpanpoudel/lenslessimaging">DeepLIR</a></td><td>20.523</td><td>0.339</td><td>0.642</td></tr>
+                <tr><td><a href="https://waller-lab.github.io/MultiWienerNet/">MWNet</a></td><td>23.001</td><td>0.255</td><td>0.766</td></tr>
+                <tr><td><a href="https://doi.org/10.1364/OE.475521">UPDN</a></td><td>23.920</td><td>0.229</td><td>0.801</td></tr>
+                <tr><td><a href="https://doi.org/10.1364/OE.501970">MWDNs</a></td><td>24.525</td><td>0.224</td><td>0.801</td></tr>
+                <tr><td><a href="https://arxiv.org/abs/2505.01755">LensNet</a></td><td>24.615</td><td>0.219</td><td>0.806</td></tr>
+                <tr><td><a href="https://doi.org/10.1109/TCI.2025.3539448">MoDL</a></td><td><u>24.791</u></td><td><u>0.202</u></td><td><u>0.810</u></td></tr>
+                <tr><td><strong>IFIN (Ours)</strong></td><td><strong>25.444</strong></td><td><strong>0.201</strong></td><td><strong>0.824</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="metric-table">
+            <h3>MultiWienerNet</h3>
+            <table class="results-table">
+              <thead><tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr></thead>
+              <tbody>
+                <tr><td><a href="https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf">ADMM</a></td><td>19.189</td><td>0.557</td><td>0.420</td></tr>
+                <tr><td><a href="https://mitpress.mit.edu/9780262730051/extrapolation-interpolation-and-smoothing-of-stationary-time-series/">Wiener Deconv.</a></td><td>18.658</td><td>0.640</td><td>0.302</td></tr>
+                <tr><td><strong>ISO (Ours)</strong></td><td>20.202</td><td>0.623</td><td>0.380</td></tr>
+                <tr><td><a href="https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/">UNet</a></td><td>23.859</td><td>0.389</td><td>0.589</td></tr>
+                <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td>24.657</td><td>0.282</td><td>0.712</td></tr>
+                <tr><td><a href="https://waller-lab.github.io/LenslessLearning/">Le-ADMM-U</a></td><td>23.732</td><td>0.335</td><td>0.702</td></tr>
+                <tr><td><a href="https://github.com/arpanpoudel/lenslessimaging">DeepLIR</a></td><td>22.556</td><td>0.379</td><td>0.642</td></tr>
+                <tr><td><a href="https://waller-lab.github.io/MultiWienerNet/">MWNet</a></td><td>25.660</td><td>0.260</td><td>0.728</td></tr>
+                <tr><td><a href="https://doi.org/10.1364/OE.475521">UPDN</a></td><td>24.364</td><td>0.287</td><td>0.707</td></tr>
+                <tr><td><a href="https://doi.org/10.1364/OE.501970">MWDNs</a></td><td>27.436</td><td>0.236</td><td>0.780</td></tr>
+                <tr><td><a href="https://arxiv.org/abs/2505.01755">LensNet</a></td><td>27.546</td><td>0.221</td><td>0.809</td></tr>
+                <tr><td><a href="https://doi.org/10.1109/TCI.2025.3539448">MoDL</a></td><td><u>28.504</u></td><td><u>0.202</u></td><td><u>0.831</u></td></tr>
+                <tr><td><strong>IFIN (Ours)</strong></td><td><strong>31.083</strong></td><td><strong>0.175</strong></td><td><strong>0.866</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
         <figure>
           <img src="assets/images/diffusercam.webp" alt="Visual comparison on DiffuserCam">
@@ -201,27 +200,40 @@
           For Gaussian deblurring, IFIN uses convolution/deconvolution operators with Gaussian kernels. For inline holography, the PSF modules are replaced by angular-spectrum forward propagation and matching back-propagation, while the forward-inverse exchange mechanism is retained.
         </p>
         <h3>Gaussian Deblurring</h3>
-        <div class="table-wrap wide-table">
-          <table class="results-table">
-            <thead>
-              <tr>
-                <th rowspan="2">Method</th>
-                <th colspan="3">sigma = 5</th>
-                <th colspan="3">sigma = 10</th>
-                <th colspan="3">sigma = 15</th>
-              </tr>
-              <tr>
-                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
-                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
-                <th>PSNR</th><th>LPIPS</th><th>SSIM</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>RCAN</td><td><u>25.303</u></td><td><u>0.220</u></td><td><u>0.810</u></td><td>22.623</td><td><u>0.330</u></td><td><u>0.750</u></td><td>21.280</td><td>0.355</td><td>0.711</td></tr>
-              <tr><td>NAFNet</td><td><strong>25.625</strong></td><td><strong>0.205</strong></td><td><strong>0.825</strong></td><td><strong>22.810</strong></td><td><strong>0.315</strong></td><td><strong>0.766</strong></td><td><u>21.535</u></td><td><u>0.345</u></td><td><u>0.715</u></td></tr>
-              <tr><td><strong>IFIN (Ours)</strong></td><td>25.100</td><td>0.230</td><td>0.800</td><td><u>22.732</u></td><td>0.337</td><td>0.741</td><td><strong>21.654</strong></td><td><strong>0.340</strong></td><td><strong>0.721</strong></td></tr>
-            </tbody>
-          </table>
+        <div class="table-grid">
+          <div class="metric-table">
+            <h3>sigma = 5</h3>
+            <table class="results-table">
+              <thead><tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr></thead>
+              <tbody>
+                <tr><td><a href="https://github.com/yulunzhang/RCAN">RCAN</a></td><td><u>25.303</u></td><td><u>0.220</u></td><td><u>0.810</u></td></tr>
+                <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td><strong>25.625</strong></td><td><strong>0.205</strong></td><td><strong>0.825</strong></td></tr>
+                <tr><td><strong>IFIN (Ours)</strong></td><td>25.100</td><td>0.230</td><td>0.800</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="metric-table">
+            <h3>sigma = 10</h3>
+            <table class="results-table">
+              <thead><tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr></thead>
+              <tbody>
+                <tr><td><a href="https://github.com/yulunzhang/RCAN">RCAN</a></td><td>22.623</td><td><u>0.330</u></td><td><u>0.750</u></td></tr>
+                <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td><strong>22.810</strong></td><td><strong>0.315</strong></td><td><strong>0.766</strong></td></tr>
+                <tr><td><strong>IFIN (Ours)</strong></td><td><u>22.732</u></td><td>0.337</td><td>0.741</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="metric-table">
+            <h3>sigma = 15</h3>
+            <table class="results-table">
+              <thead><tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr></thead>
+              <tbody>
+                <tr><td><a href="https://github.com/yulunzhang/RCAN">RCAN</a></td><td>21.280</td><td>0.355</td><td>0.711</td></tr>
+                <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td><u>21.535</u></td><td><u>0.345</u></td><td><u>0.715</u></td></tr>
+                <tr><td><strong>IFIN (Ours)</strong></td><td><strong>21.654</strong></td><td><strong>0.340</strong></td><td><strong>0.721</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
         <h3>Inline Holography Reconstruction</h3>
         <p>
@@ -233,9 +245,9 @@
               <tr><th>Method</th><th>PSNR</th><th>LPIPS</th><th>SSIM</th></tr>
             </thead>
             <tbody>
-              <tr><td>RCAN</td><td>23.764</td><td>0.354</td><td>0.702</td></tr>
-              <tr><td>NAFNet</td><td>23.224</td><td>0.389</td><td>0.634</td></tr>
-              <tr><td>NAFNet+</td><td><u>25.751</u></td><td><u>0.242</u></td><td><u>0.817</u></td></tr>
+              <tr><td><a href="https://github.com/yulunzhang/RCAN">RCAN</a></td><td>23.764</td><td>0.354</td><td>0.702</td></tr>
+              <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet</a></td><td>23.224</td><td>0.389</td><td>0.634</td></tr>
+              <tr><td><a href="https://github.com/megvii-research/NAFNet">NAFNet+</a></td><td><u>25.751</u></td><td><u>0.242</u></td><td><u>0.817</u></td></tr>
               <tr><td><strong>IFIN (Ours)</strong></td><td><strong>28.302</strong></td><td><strong>0.166</strong></td><td><strong>0.890</strong></td></tr>
             </tbody>
           </table>
@@ -243,6 +255,40 @@
         <figure>
           <img src="assets/images/inline.webp" alt="Inline holography reconstruction">
           <figcaption>Reconstruction results for the inline holography benchmark. From left to right: input intensity hologram, reconstructed object amplitude by each method, and ground-truth object amplitude. IFIN adapts to the holographic forward model and recovers cleaner object structures from a single hologram.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="widercam" class="section">
+      <div class="container">
+        <h2>WiderCam Dataset</h2>
+        <p class="section-summary">
+          WiderCam is a wide-FoV lensless benchmark captured with a compact phase-mask camera. It contains 25,000 paired display-capture measurements, split into 24,000 training and 1,000 test images, and emphasizes strong field-dependent degradation near the image periphery.
+        </p>
+        <p>
+          The dataset was captured using a Sony IMX708 sensor module with a custom phase mask. MIRFlickr images were displayed on a 48-inch OLED screen at a 30 cm working distance, occupying roughly 80% of the display area. Raw measurements were captured at 4608 x 2592 and resized to 480 x 270 for training and evaluation.
+        </p>
+        <p>
+          Because WiderCam does not use a separate reference camera, supervision is aligned offline. A deconvolution reconstruction is matched to the displayed target, an affine transform is estimated from the display-capture pair, and the label image is warped to define pixel-aligned supervision.
+        </p>
+        <p class="dataset-link"><a href="https://iilab.io/SVLensless-dataset">Open dataset page</a></p>
+        <div class="grid two">
+          <figure>
+            <img src="assets/images/camera.webp" alt="WiderCam camera and capture setup">
+            <figcaption>Prototype lensless camera and dataset capture setup. The camera uses a CMOS sensor in a custom 3D-printed holder, and WiderCam pairs displayed reference images with lensless measurements recorded at a fixed display-capture geometry.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/images/affine.webp" alt="Affine registration for WiderCam">
+            <figcaption>Affine registration for label and display-capture pairs. Feature correspondences are estimated between the displayed reference and a deconvolution reconstruction, then used to warp labels into pixel-wise alignment for supervised training and evaluation.</figcaption>
+          </figure>
+        </div>
+        <figure>
+          <img src="assets/images/mask_psf.webp" alt="Phase mask and PSF characterization">
+          <figcaption>Phase mask design and PSF characterization. The figure shows the designed phase-mask pattern, representative profile, simulated on- and off-axis PSFs, and captured on- and off-axis PSFs, illustrating the shift variance induced by the compact high-resolution optics.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/variant_deconv.webp" alt="Field-dependent deconvolution">
+          <figcaption>Field-dependent deconvolution with center and off-axis PSFs. Using different local PSFs changes sharpness at the image center and periphery, directly showing why a spatially varying PSF field is needed for WiderCam.</figcaption>
         </figure>
       </div>
     </section>
@@ -278,5 +324,21 @@ python train.py --config configs/default.yaml</code></pre>
       <a href="mailto:donggeonbae@snu.ac.kr">donggeonbae@snu.ac.kr</a>.
     </div>
   </footer>
+  <script>
+    document.querySelectorAll(".copy-email").forEach((link) => {
+      const originalTitle = link.getAttribute("title") || "";
+      link.addEventListener("click", async (event) => {
+        event.preventDefault();
+        const email = link.dataset.email;
+        try {
+          await navigator.clipboard.writeText(email);
+          link.setAttribute("title", "Copied: " + email);
+          window.setTimeout(() => link.setAttribute("title", originalTitle), 1400);
+        } catch (error) {
+          window.prompt("Copy email address", email);
+        }
+      });
+    });
+  </script>
 </body>
 </html>
