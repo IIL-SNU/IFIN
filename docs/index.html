@@ -5,205 +5,206 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>IFIN - Integrated Forward-Inverse Network</title>
   <meta name="description" content="Integrated Forward-Inverse Network for Lensless Image Reconstruction. Accepted to ECCV 2026.">
+  <meta property="og:type" content="article">
   <meta property="og:title" content="IFIN - Integrated Forward-Inverse Network">
   <meta property="og:description" content="Physics-guided lensless image reconstruction with forward-inverse interleaving. Accepted to ECCV 2026.">
   <meta property="og:image" content="https://iilab.io/IFIN/assets/images/teaser.webp">
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-  <header class="hero">
-    <nav class="topbar" aria-label="Primary">
-      <a href="#abstract">Abstract</a>
-      <a href="#method">Method</a>
-      <a href="#results">Results</a>
-      <a href="#widercam">WiderCam</a>
-      <a href="#citation">Citation</a>
-    </nav>
-    <div class="hero-content">
-      <p class="eyebrow">Accepted to ECCV 2026</p>
-      <h1>IFIN</h1>
-      <p class="subtitle">Integrated Forward-Inverse Network for Lensless Image Reconstruction</p>
-      <p class="authors">Donggeon Bae, Jaewoo Jung, Yong Guk Kang, Kyung Chul Lee, Taeyoung Kim, Jongho Kim, Sangjun Byun, Joonsik Park, Seung Ah Lee</p>
-      <div class="actions" aria-label="Project links">
+  <header class="paper-header">
+    <div class="container">
+      <h1>Integrated Forward-Inverse Network<br>for Lensless Image Reconstruction</h1>
+      <p class="conference">ECCV 2026</p>
+      <p class="authors">
+        Donggeon Bae<sup>1</sup>,
+        Jaewoo Jung<sup>2,3</sup>,
+        Yong Guk Kang<sup>2</sup>,
+        Kyung Chul Lee<sup>4</sup>,
+        Taeyoung Kim<sup>3</sup>,
+        Jongho Kim<sup>1</sup>,
+        Sangjun Byun<sup>1</sup>,
+        Joonsik Park<sup>3</sup>,
+        Seung Ah Lee<sup>1,2</sup>
+      </p>
+      <p class="affiliations">
+        <sup>1</sup>Seoul National University, Department of Mechanical Engineering<br>
+        <sup>2</sup>Seoul National University, School of Mechanical and Aerospace Engineering/SNU-IAMD<br>
+        <sup>3</sup>Yonsei University, Department of Electrical and Electronic Engineering<br>
+        <sup>4</sup>University of Michigan, Department of Biomedical Engineering
+      </p>
+      <nav class="buttons" aria-label="Project links">
         <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_paper.pdf">Paper</a>
         <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_supplementary.pdf">Supplement</a>
         <a href="https://github.com/IIL-SNU/IFIN">Code</a>
         <a href="https://iilab.io/SVLensless-dataset">Dataset</a>
-      </div>
+      </nav>
     </div>
   </header>
 
   <main>
-    <section id="abstract" class="section narrow">
-      <h2>Abstract</h2>
-      <p>
-        Lensless imaging enables compact and versatile computational cameras by replacing bulky optics with thin coded elements. Reconstruction is challenging because large-footprint PSFs produce highly multiplexed observations, making inversion severely ill-conditioned and sensitive to calibration errors and model mismatch. IFIN interleaves differentiable forward projections with learnable inverse updates at every stage, allowing measurement- and image-domain cues to refine each other throughout the hierarchy.
-      </p>
-      <p>
-        Across DiffuserCam, WiderCam, and MultiWienerNet benchmarks, IFIN achieves state-of-the-art reconstruction quality. The same forward-inverse interleaving principle also transfers to Gaussian deblurring and simulated inline holography.
-      </p>
+    <section class="section figure-section">
+      <div class="container wide">
+        <img class="main-image" src="assets/images/teaser.webp" alt="IFIN lensless reconstruction teaser">
+      </div>
+    </section>
+
+    <section id="abstract" class="section">
+      <div class="container text">
+        <h2>Abstract</h2>
+        <p>
+          Lensless imaging enables compact and versatile computational cameras by replacing bulky optics with thin coded elements. Reconstruction is challenging because large-footprint PSFs produce highly multiplexed observations, making inversion severely ill-conditioned and sensitive to calibration errors and model mismatch.
+        </p>
+        <p>
+          We propose the Integrated Forward-Inverse Network (IFIN), a physics-guided architecture that interleaves differentiable forward projections with learnable inverse updates at every stage. This bidirectional coupling supports progressive, physics-consistent refinement and permits system-constrained PSF kernel refinement under model uncertainty. On challenging lensless benchmarks, including the newly introduced WiderCam dataset, IFIN achieves state-of-the-art reconstruction quality.
+        </p>
+      </div>
     </section>
 
     <section id="method" class="section">
-      <div class="section-heading">
-        <p class="eyebrow">Physics-guided architecture</p>
-        <h2>Forward-Inverse Interleaving at Every Scale</h2>
+      <div class="container">
+        <h2>Method</h2>
+        <p class="section-summary">
+          IFIN maintains coupled measurement-domain and image-domain streams. At each scale, an Integrated Forward-Inverse Block exchanges information through a Forward System Operator, an Inverse System Operator, and a shared learnable PSF field.
+        </p>
+        <figure>
+          <img src="assets/images/architecture.webp" alt="Overall architecture of IFIN">
+          <figcaption>Overall architecture of IFIN.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/ifib.webp" alt="Integrated Forward-Inverse Block">
+          <figcaption>Forward-inverse exchange inside an IFIB.</figcaption>
+        </figure>
       </div>
-      <figure>
-        <img src="assets/images/architecture.webp" alt="Overall architecture of IFIN">
-        <figcaption>IFIN couples measurement-domain and image-domain streams through Integrated Forward-Inverse Blocks across an encoder-decoder hierarchy.</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/images/ifib.webp" alt="Integrated Forward-Inverse Block">
-        <figcaption>Each IFIB combines a Forward System Operator, an Inverse System Operator, and learnable gates conditioned by a shared PSF field.</figcaption>
-      </figure>
     </section>
 
     <section id="results" class="section">
-      <div class="section-heading">
-        <p class="eyebrow">Reconstruction quality</p>
-        <h2>Lensless Benchmarks</h2>
-      </div>
-      <div class="metrics" aria-label="Benchmark highlights">
-        <div>
-          <span>DiffuserCam</span>
-          <strong>29.862</strong>
-          <small>PSNR</small>
+      <div class="container">
+        <h2>Results</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dataset</th>
+                <th>Metric</th>
+                <th>Previous Best</th>
+                <th>IFIN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>DiffuserCam</td><td>PSNR</td><td>28.228</td><td><strong>29.862</strong></td></tr>
+              <tr><td>DiffuserCam</td><td>LPIPS</td><td>0.183</td><td><strong>0.174</strong></td></tr>
+              <tr><td>DiffuserCam</td><td>SSIM</td><td>0.878</td><td><strong>0.893</strong></td></tr>
+              <tr><td>WiderCam</td><td>PSNR</td><td>24.791</td><td><strong>25.444</strong></td></tr>
+              <tr><td>WiderCam</td><td>LPIPS</td><td>0.202</td><td><strong>0.201</strong></td></tr>
+              <tr><td>WiderCam</td><td>SSIM</td><td>0.810</td><td><strong>0.824</strong></td></tr>
+              <tr><td>MultiWienerNet</td><td>PSNR</td><td>28.504</td><td><strong>31.083</strong></td></tr>
+              <tr><td>MultiWienerNet</td><td>LPIPS</td><td>0.202</td><td><strong>0.175</strong></td></tr>
+              <tr><td>MultiWienerNet</td><td>SSIM</td><td>0.831</td><td><strong>0.866</strong></td></tr>
+            </tbody>
+          </table>
         </div>
-        <div>
-          <span>WiderCam</span>
-          <strong>25.444</strong>
-          <small>PSNR</small>
-        </div>
-        <div>
-          <span>MultiWienerNet</span>
-          <strong>31.083</strong>
-          <small>PSNR</small>
-        </div>
+        <figure>
+          <img src="assets/images/diffusercam.webp" alt="Visual comparison on DiffuserCam">
+          <figcaption>DiffuserCam display-capture reconstruction.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/widercam.webp" alt="Visual comparison on WiderCam">
+          <figcaption>WiderCam reconstruction under strong field-dependent degradation.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/mwnet.webp" alt="Visual comparison on MultiWienerNet">
+          <figcaption>MultiWienerNet reconstruction with simulated and experimental captures.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/images/inthewild.webp" alt="In-the-wild WiderCam reconstruction">
+          <figcaption>In-the-wild WiderCam captures without ground truth.</figcaption>
+        </figure>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Dataset</th>
-              <th>Metric</th>
-              <th>Previous Best</th>
-              <th>IFIN</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>DiffuserCam</td><td>PSNR</td><td>28.228</td><td><strong>29.862</strong></td></tr>
-            <tr><td>DiffuserCam</td><td>LPIPS</td><td>0.183</td><td><strong>0.174</strong></td></tr>
-            <tr><td>DiffuserCam</td><td>SSIM</td><td>0.878</td><td><strong>0.893</strong></td></tr>
-            <tr><td>WiderCam</td><td>PSNR</td><td>24.791</td><td><strong>25.444</strong></td></tr>
-            <tr><td>WiderCam</td><td>LPIPS</td><td>0.202</td><td><strong>0.201</strong></td></tr>
-            <tr><td>WiderCam</td><td>SSIM</td><td>0.810</td><td><strong>0.824</strong></td></tr>
-            <tr><td>MultiWienerNet</td><td>PSNR</td><td>28.504</td><td><strong>31.083</strong></td></tr>
-            <tr><td>MultiWienerNet</td><td>LPIPS</td><td>0.202</td><td><strong>0.175</strong></td></tr>
-            <tr><td>MultiWienerNet</td><td>SSIM</td><td>0.831</td><td><strong>0.866</strong></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <figure>
-        <img src="assets/images/diffusercam.webp" alt="Visual comparison on DiffuserCam">
-        <figcaption>DiffuserCam display-capture reconstruction. IFIN preserves high-frequency texture and color while reducing artifacts.</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/images/widercam.webp" alt="Visual comparison on WiderCam">
-        <figcaption>WiderCam reconstruction. IFIN improves peripheral structure under strong field-dependent degradation.</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/images/mwnet.webp" alt="Visual comparison on MultiWienerNet">
-        <figcaption>MultiWienerNet reconstruction with simulated and experimental captures.</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/images/inthewild.webp" alt="In-the-wild WiderCam reconstruction">
-        <figcaption>In-the-wild WiderCam captures without ground truth.</figcaption>
-      </figure>
     </section>
 
     <section id="widercam" class="section">
-      <div class="section-heading">
-        <p class="eyebrow">Dataset and system</p>
-        <h2>WiderCam</h2>
-      </div>
-      <p class="lead">
-        WiderCam is a wide-field lensless reconstruction benchmark captured with a compact custom phase-mask camera. It contains 25,000 paired measurements, split into 24,000 training and 1,000 test images, and highlights strong shift-variant degradation across the field of view.
-      </p>
-      <div class="actions inline">
-        <a href="https://iilab.io/SVLensless-dataset">Open Dataset Page</a>
-      </div>
-      <div class="grid two">
+      <div class="container">
+        <h2>WiderCam Dataset</h2>
+        <p class="section-summary">
+          WiderCam is a wide-field lensless reconstruction benchmark captured with a compact custom phase-mask camera. It contains 25,000 paired measurements, split into 24,000 training and 1,000 test images, and highlights strong shift-variant degradation across the field of view.
+        </p>
+        <p class="dataset-link"><a href="https://iilab.io/SVLensless-dataset">Open SVLensless / WiderCam dataset page</a></p>
+        <div class="grid two">
+          <figure>
+            <img src="assets/images/camera.webp" alt="WiderCam camera and capture setup">
+            <figcaption>Prototype lensless camera and capture setup.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/images/affine.webp" alt="Affine registration for WiderCam">
+            <figcaption>Affine registration for aligned supervision.</figcaption>
+          </figure>
+        </div>
         <figure>
-          <img src="assets/images/camera.webp" alt="WiderCam camera and capture setup">
-          <figcaption>Prototype lensless camera and display-capture setup.</figcaption>
+          <img src="assets/images/mask_psf.webp" alt="Phase mask and PSF characterization">
+          <figcaption>Phase mask design and on/off-axis PSF characterization.</figcaption>
         </figure>
         <figure>
-          <img src="assets/images/affine.webp" alt="Affine registration for WiderCam">
-          <figcaption>Affine registration for aligned supervision.</figcaption>
+          <img src="assets/images/variant_deconv.webp" alt="Field-dependent deconvolution">
+          <figcaption>Field-dependent PSFs produce different reconstruction behavior across the image.</figcaption>
         </figure>
       </div>
-      <figure>
-        <img src="assets/images/mask_psf.webp" alt="Phase mask and PSF characterization">
-        <figcaption>Designed phase mask, measured profile, and on/off-axis PSF characterization.</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/images/variant_deconv.webp" alt="Field-dependent deconvolution">
-        <figcaption>Field-dependent PSFs produce different reconstruction behavior across the image.</figcaption>
-      </figure>
     </section>
 
-    <section class="section">
-      <div class="section-heading">
-        <p class="eyebrow">More results</p>
-        <h2>Supplementary Visualizations</h2>
-      </div>
-      <div class="grid two tall">
+    <section id="more-results" class="section">
+      <div class="container">
+        <h2>More Results</h2>
+        <div class="grid two tall">
+          <figure>
+            <img src="assets/images/more_diffusercam.webp" alt="Additional DiffuserCam results">
+            <figcaption>Additional DiffuserCam visual comparisons.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/images/more_widercam.webp" alt="Additional WiderCam results">
+            <figcaption>Additional WiderCam visual comparisons.</figcaption>
+          </figure>
+        </div>
         <figure>
-          <img src="assets/images/more_diffusercam.webp" alt="Additional DiffuserCam results">
-          <figcaption>Additional DiffuserCam visual comparisons.</figcaption>
+          <img src="assets/images/roi_recon.webp" alt="Region-wise reconstruction and ROI maps">
+          <figcaption>Region-wise reconstruction behavior with PSF-field blending.</figcaption>
         </figure>
         <figure>
-          <img src="assets/images/more_widercam.webp" alt="Additional WiderCam results">
-          <figcaption>Additional WiderCam visual comparisons.</figcaption>
+          <img src="assets/images/inline.webp" alt="Inline holography reconstruction">
+          <figcaption>Extension to simulated inline holography reconstruction.</figcaption>
         </figure>
       </div>
-      <figure>
-        <img src="assets/images/roi_recon.webp" alt="Region-wise reconstruction and ROI maps">
-        <figcaption>Region-wise reconstruction behavior with PSF-field blending.</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/images/inline.webp" alt="Inline holography reconstruction">
-        <figcaption>Extension to simulated inline holography reconstruction.</figcaption>
-      </figure>
     </section>
 
-    <section id="code" class="section narrow">
-      <h2>Code</h2>
-      <pre><code>git clone https://github.com/IIL-SNU/IFIN.git
+    <section id="code" class="section">
+      <div class="container text">
+        <h2>Code</h2>
+        <pre><code>git clone https://github.com/IIL-SNU/IFIN.git
 cd IFIN
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python train.py --config configs/default.yaml</code></pre>
-      <p>
-        The default configuration follows a DiffuserCam/Waller-style paired dataset layout. Use <code>data.dataset: synthetic</code> for a no-data smoke test.
-      </p>
+      </div>
     </section>
 
-    <section id="citation" class="section narrow">
-      <h2>Citation</h2>
-      <pre><code>@inproceedings{bae2026ifin,
+    <section id="citation" class="section">
+      <div class="container text">
+        <h2>Citation</h2>
+        <pre><code>@inproceedings{bae2026ifin,
   title     = {Integrated Forward-Inverse Network for Lensless Image Reconstruction},
   author    = {Bae, Donggeon and Jung, Jaewoo and Kang, Yong Guk and Lee, Kyung Chul and Kim, Taeyoung and Kim, Jongho and Byun, Sangjun and Park, Joonsik and Lee, Seung Ah},
   booktitle = {European Conference on Computer Vision (ECCV)},
   year      = {2026}
 }</code></pre>
+      </div>
     </section>
   </main>
 
   <footer>
-    <p>For other datasets, checkpoints, or additional code, please email <a href="mailto:donggeonbae@snu.ac.kr">donggeonbae@snu.ac.kr</a>.</p>
+    <div class="container">
+      Other datasets, checkpoints, and additional code are available by email:
+      <a href="mailto:donggeonbae@snu.ac.kr">donggeonbae@snu.ac.kr</a>.
+    </div>
   </footer>
 </body>
 </html>
