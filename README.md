@@ -14,7 +14,7 @@ Donggeon Bae<sup>1</sup>, Jaewoo Jung<sup>2,3</sup>, Yong Guk Kang<sup>2</sup>, 
 <sup>4</sup>University of Michigan, Department of Biomedical Engineering
 
 <p>
-  <a href="https://iil-snu.github.io/IFIN/"><img src="https://img.shields.io/badge/Project-Page-315c5f" alt="Project page"></a>
+  <a href="https://iilab.io/IFIN/"><img src="https://img.shields.io/badge/Project-Page-315c5f" alt="Project page"></a>
   <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_paper.pdf"><img src="https://img.shields.io/badge/Paper-PDF-bb4b4b" alt="Paper PDF"></a>
   <a href="https://github.com/IIL-SNU/IFIN/releases/download/v0.1/ifin_eccv2026_supplementary.pdf"><img src="https://img.shields.io/badge/Supplement-PDF-6b5f2a" alt="Supplement PDF"></a>
   <a href="https://iilab.io/SVLensless-dataset"><img src="https://img.shields.io/badge/WiderCam-Dataset-4d6f3b" alt="WiderCam dataset"></a>
@@ -62,7 +62,7 @@ IFIN improves reconstruction quality across three lensless benchmarks: DiffuserC
 
 <img src="docs/assets/images/mwnet.webp" alt="MultiWienerNet reconstruction comparison" width="100%">
 
-More qualitative results and system details are available on the [project page](https://iil-snu.github.io/IFIN/).
+More qualitative results and system details are available on the [project page](https://iilab.io/IFIN/).
 
 ## WiderCam Dataset
 

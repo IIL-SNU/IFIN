@@ -22,7 +22,7 @@ authors:
   - family-names: Lee
     given-names: Seung Ah
 repository-code: "https://github.com/IIL-SNU/IFIN"
-url: "https://iil-snu.github.io/IFIN/"
+url: "https://iilab.io/IFIN/"
 preferred-citation:
   type: conference-paper
   title: "Integrated Forward-Inverse Network for Lensless Image Reconstruction"
