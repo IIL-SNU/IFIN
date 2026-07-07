@@ -13,8 +13,7 @@ Donggeon Bae<sup>1</sup>, Jaewoo Jung<sup>2,3</sup>, Yong Guk Kang<sup>2</sup>, 
 
 <p>
   <a href="https://iilab.io/IFIN/"><img src="https://img.shields.io/badge/Project-Page-315c5f" alt="Project page"></a>
-  <a href="https://iilab.io/IFIN/paper.html"><img src="https://img.shields.io/badge/Paper-PDF-bb4b4b" alt="Paper PDF"></a>
-  <a href="https://iilab.io/IFIN/supplement.html"><img src="https://img.shields.io/badge/Supplement-PDF-6b5f2a" alt="Supplement PDF"></a>
+  <a href="https://arxiv.org/abs/2607.04608"><img src="https://img.shields.io/badge/arXiv-2607.04608-b31b1b" alt="arXiv"></a>
   <a href="https://iilab.io/WiderCam"><img src="https://img.shields.io/badge/Dataset-Page-4d6f3b" alt="Dataset"></a>
 </p>
 
