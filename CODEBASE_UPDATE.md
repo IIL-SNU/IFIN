@@ -15,7 +15,10 @@ Do not publish data, weights, notebook outputs, or machine-specific paths.
 - [x] Restore research IFIN operations and verify legacy checkpoint compatibility.
 - [x] Package the evaluated baselines and dataset-specific training/evaluation recipes.
 - [x] Run tests, real-data inference, and CLI checks.
-- [ ] Commit and push the code update.
+- [x] Commit and push the code update.
+
+Implementation commit: `5a68b38ab473c1ece55aaf31b54bcf7c35c92a59` on
+`IIL-SNU/IFIN` main. The unrelated local Fourier-PSF notebook was not included.
 
 ## Verification
 
