@@ -1,0 +1,25 @@
+inherits: diffusercam.yaml
+device: cpu
+model:
+  height: 32
+  width: 32
+  dim: 8
+  depth: 2
+  k: 1
+data:
+  dataset: synthetic
+  psf_size: 16
+train:
+  epochs: 1
+  num_samples: 4
+  batch_size: 2
+  num_workers: 0
+eval:
+  num_samples: 2
+  batch_size: 1
+  num_workers: 0
+  metrics: [psnr]
+loss:
+  lpips: 0.0
+checkpoint:
+  output_dir: outputs/checkpoints/smoke

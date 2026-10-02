@@ -1,4 +1,4 @@
-torch
+torch>=2.1
 torchvision
 numpy
 scipy
@@ -7,3 +7,5 @@ PyYAML
 pytest
 pandas
 opencv-python
+lpips
+pyiqa

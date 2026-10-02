@@ -1,293 +1,385 @@
 from __future__ import annotations
 
+import copy
+import random
 from pathlib import Path
 from typing import Any, Dict
 
-import cv2
 import numpy as np
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
-from data.synthetic import SyntheticLenslessDataset, SyntheticLenslessSpec
-from data.waller import WallerDataset, validate_waller_paths
+from data import build_dataset
+from data.psf import build_psf
 from losses.basic import ReconstructionLoss
-from metrics.basic import psnr
-from models import build_ifin_model
-from utils.checkpoint import load_model_state_compat, save_checkpoint
+from metrics.basic import build_metrics, metric_values, normalize_images
+from models import build_model
+from utils.checkpoint import load_checkpoint, load_model_state_compat, save_checkpoint
 from utils.seed import seed_everything
 
 
-def _resolve_data_path(path_value: str) -> str:
-    candidate = Path(path_value).expanduser()
-    if candidate.is_absolute() and candidate.exists():
-        return str(candidate)
-
-    roots = [
-        Path.cwd(),
-        Path(__file__).resolve().parents[1],
-        Path(__file__).resolve().parents[2],
-    ]
-    for root in roots:
-        resolved = (root / candidate).resolve()
-        if resolved.exists():
-            return str(resolved)
-
-    return str((Path.cwd() / candidate).resolve())
-
-
-def _resolve_waller_and_psf_paths(data_cfg: Dict[str, Any]) -> tuple[str, str]:
-    configured_waller = data_cfg.get("waller_path", "../../wallerlab/dataset")
-    waller_path = _resolve_data_path(configured_waller)
-
-    configured_psf = data_cfg.get("psf_path", "../../wallerlab/dataset/psf.tiff")
-    psf_path = _resolve_data_path(configured_psf)
-    if not Path(psf_path).exists():
-        derived = str((Path(waller_path) / "psf.tiff").resolve())
-        if Path(derived).exists():
-            psf_path = derived
-
-    return waller_path, psf_path
-
-
-def _select_device(device_config: str) -> torch.device:
-    if device_config == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return torch.device(device_config)
-
-
-def _build_psf(config: Dict[str, Any], device: torch.device) -> torch.Tensor:
-    data_cfg = config["data"]
-    model_cfg = config["model"]
-    dataset_name = data_cfg.get("dataset", "waller")
-
-    if dataset_name == "waller":
-        waller_path, psf_path = _resolve_waller_and_psf_paths(data_cfg)
-        validate_waller_paths(waller_path=waller_path, psf_path=psf_path)
-        psf = cv2.imread(psf_path, 0)
-        if psf is None:
-            raise FileNotFoundError(f"Cannot read PSF image: {psf_path}")
-        psf = cv2.resize(psf, (model_cfg["width"], model_cfg["height"]))
-        psf = np.asarray(psf)
-        psf = torch.from_numpy(psf).unsqueeze(0).unsqueeze(0).to(device)
-        psf = psf / 255.0
-        patch = int(data_cfg.get("psf_bg_patch", 15))
-        psf_bg = torch.mean(psf[:, :, 0:patch, 0:patch])
-        psf = psf - psf_bg
-        psf[psf < 0] = 0
-        return psf
-
-    psf_size = data_cfg["psf_size"]
-    generator = torch.Generator(device="cpu").manual_seed(config["seed"])
-    psf = torch.rand(1, 1, psf_size, psf_size, generator=generator)
-    return psf.to(device)
+def _select_device(value: str) -> torch.device:
+    return torch.device(
+        "cuda"
+        if value == "auto" and torch.cuda.is_available()
+        else "cpu"
+        if value == "auto"
+        else value
+    )
 
 
 def _build_loader(config: Dict[str, Any], split: str) -> DataLoader:
-    split_cfg = config[split]
-    model_cfg = config["model"]
-    data_cfg = config["data"]
-
-    if data_cfg.get("dataset", "waller") == "waller":
-        transformer_raw = transforms.Compose([transforms.ToTensor()])
-        transformer_lab = transforms.Compose([transforms.ToTensor()])
-        waller_path, psf_path = _resolve_waller_and_psf_paths(data_cfg)
-        validate_waller_paths(
-            waller_path=waller_path,
-            psf_path=psf_path,
-            train=(split == "train"),
-        )
-        dataset = WallerDataset(
-            waller_path,
-            train=(split == "train"),
-            transform_raw=transformer_raw,
-            transform_lab=transformer_lab,
-        )
-        return DataLoader(
-            dataset,
-            batch_size=split_cfg["batch_size"],
-            shuffle=(split == "train"),
-            num_workers=split_cfg.get("num_workers", 0),
-            pin_memory=split_cfg.get("pin_memory", False),
-        )
-
-    spec = SyntheticLenslessSpec(
-        num_samples=split_cfg["num_samples"],
-        channels=model_cfg["in_channels"],
-        height=model_cfg["height"],
-        width=model_cfg["width"],
-        seed=config["seed"] + (0 if split == "train" else 1),
-    )
-    dataset = SyntheticLenslessDataset(spec)
+    options = config[split]
     return DataLoader(
-        dataset,
-        batch_size=split_cfg["batch_size"],
-        shuffle=(split == "train"),
-        num_workers=split_cfg.get("num_workers", 0),
-        pin_memory=split_cfg.get("pin_memory", False),
+        build_dataset(config, split),
+        batch_size=options["batch_size"],
+        shuffle=split == "train",
+        num_workers=options.get("num_workers", 0),
+        pin_memory=options.get("pin_memory", False),
     )
+
+
+def _outputs(
+    config: Dict[str, Any], output: Any
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    if config["model"].get("name", "ifin").lower() == "ifin":
+        image, measurement, initial = output
+        return image, measurement, initial
+    return (output[0] if isinstance(output, (tuple, list)) else output), None, None
+
+
+def _rng_state() -> Dict[str, Any]:
+    numpy_state = np.random.get_state()
+    state: Dict[str, Any] = {
+        "torch": torch.get_rng_state(),
+        "numpy": [numpy_state[0], numpy_state[1].tolist(), *numpy_state[2:]],
+        "random": random.getstate(),
+    }
+    if torch.cuda.is_available():
+        state["cuda"] = torch.cuda.get_rng_state_all()
+    return state
+
+
+def _restore_rng(state: Dict[str, Any]) -> None:
+    torch.set_rng_state(state["torch"])
+    numpy_state = state["numpy"]
+    np.random.set_state(
+        (numpy_state[0], np.asarray(numpy_state[1], dtype=np.uint32), *numpy_state[2:])
+    )
+    random.setstate(state["random"])
+    if "cuda" in state and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(state["cuda"])
+
+
+def _run_loader(
+    config: Dict[str, Any],
+    model: torch.nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    criterion: ReconstructionLoss,
+    optimizer: optim.Optimizer | None = None,
+    psf_optimizer: optim.Optimizer | None = None,
+    metric_names: list[str] | None = None,
+) -> Dict[str, float]:
+    training = optimizer is not None
+    model.train(training)
+    metrics = build_metrics(metric_names or ["psnr"], device)
+    totals = {"loss": 0.0, **{name: 0.0 for name in metrics}}
+    samples = 0
+    for measurement, target in loader:
+        measurement, target = measurement.to(device), target.to(device)
+        if training:
+            optimizer.zero_grad(set_to_none=True)
+            if psf_optimizer:
+                psf_optimizer.zero_grad(set_to_none=True)
+        with torch.set_grad_enabled(training):
+            image, measurement_recon, initial = _outputs(config, model(measurement))
+            model_psf = (
+                getattr(model, "psf", None)
+                if config["model"].get("name", "ifin").lower() == "ifin"
+                else None
+            )
+            loss = criterion(
+                image,
+                target,
+                measurement_recon,
+                measurement,
+                initial,
+                model_psf,
+            )
+            if training:
+                loss.backward()
+                optimizer.step()
+                if psf_optimizer:
+                    psf_optimizer.step()
+        batch_size = target.shape[0]
+        totals["loss"] += float(loss.detach()) * batch_size
+        mode = config.get("eval", {}).get("normalize", "max")
+        prediction, reference = (
+            normalize_images(image.detach(), mode),
+            normalize_images(target.detach(), mode),
+        )
+        for name, values in metric_values(metrics, prediction, reference).items():
+            totals[name] += float(values.sum())
+        samples += batch_size
+    if not samples:
+        raise ValueError("Dataset is empty")
+    return {name: value / samples for name, value in totals.items()}
+
+
+def _setup(config: Dict[str, Any], checkpoint_path: str | None = None):
+    seed_everything(config["seed"], deterministic=config["deterministic"])
+    device = _select_device(config["device"])
+    checkpoint = load_checkpoint(checkpoint_path, "cpu") if checkpoint_path else None
+    model = build_model(
+        config, build_psf(config).to(device), device=device, checkpoint=checkpoint
+    )
+    if checkpoint:
+        load_model_state_compat(model, checkpoint, strict=True)
+    return device, model, checkpoint
+
+
+def train(config: Dict[str, Any], checkpoint_path: str | None = None) -> Dict[str, Any]:
+    config = copy.deepcopy(config)
+    config["phase"] = "train"
+    device, model, checkpoint = _setup(config, checkpoint_path)
+    psf = (
+        getattr(model, "psf", None)
+        if config["model"].get("name", "ifin").lower() == "ifin"
+        else None
+    )
+    separate_psf = (
+        psf is not None
+        and psf.requires_grad
+        and config.get("optimizer", {}).get("psf_lr") is not None
+    )
+    checkpoint_psf_state = None
+    if checkpoint:
+        checkpoint_psf_state = checkpoint.get(
+            "psf_optimizer_state_dict", checkpoint.get("optimizer_psf_state_dict")
+        )
+        if bool(checkpoint_psf_state) != separate_psf:
+            raise ValueError(
+                "Checkpoint PSF optimizer grouping does not match optimizer.psf_lr; "
+                "use the optimizer layout recorded by the checkpoint"
+            )
+    network_parameters = [
+        parameter
+        for parameter in model.parameters()
+        if not separate_psf or parameter is not psf
+    ]
+    if not network_parameters:
+        raise ValueError(
+            f"Model {config['model'].get('name')!r} has no trainable network parameters; use eval"
+        )
+    optimizer = optim.AdamW(
+        network_parameters,
+        lr=float(config.get("optimizer", {}).get("lr", 1e-4)),
+    )
+    psf_optimizer = None
+    if separate_psf:
+        psf_optimizer = optim.AdamW([psf], lr=float(config["optimizer"]["psf_lr"]))
+    scheduler_options = {
+        "factor": 0.5,
+        "patience": 25,
+        "threshold": 1e-4,
+        **config.get("scheduler", {}),
+    }
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", **scheduler_options
+    )
+    psf_scheduler = (
+        optim.lr_scheduler.ReduceLROnPlateau(
+            psf_optimizer, mode="min", **scheduler_options
+        )
+        if psf_optimizer
+        else None
+    )
+    start_epoch = 0
+    best_loss = float("inf")
+    if checkpoint:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if psf_optimizer and checkpoint_psf_state:
+            psf_optimizer.load_state_dict(checkpoint_psf_state)
+        if checkpoint.get("scheduler_state_dict"):
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        if psf_scheduler and checkpoint.get("psf_scheduler_state_dict"):
+            psf_scheduler.load_state_dict(checkpoint["psf_scheduler_state_dict"])
+        elif psf_scheduler and checkpoint.get("scheduler_psf_state_dict"):
+            psf_scheduler.load_state_dict(checkpoint["scheduler_psf_state_dict"])
+        start_epoch = int(checkpoint.get("epoch", 0))
+        best_loss = float(checkpoint.get("best_loss", best_loss))
+        if checkpoint.get("rng_state"):
+            _restore_rng(checkpoint["rng_state"])
+
+    criterion = ReconstructionLoss(config).to(device)
+    train_loader = _build_loader(config, "train")
+    eval_loader = _build_loader(config, "eval")
+    history = []
+    epochs = int(config.get("train", {}).get("epochs", 100))
+    for epoch in range(start_epoch, epochs):
+        training = _run_loader(
+            config,
+            model,
+            train_loader,
+            device,
+            criterion,
+            optimizer,
+            psf_optimizer,
+        )
+        validation = _run_loader(
+            config, model, eval_loader, device, criterion
+        )
+        scheduler.step(validation["loss"])
+        if psf_scheduler:
+            psf_scheduler.step(validation["loss"])
+        record = {
+            "epoch": epoch + 1,
+            **{f"train_{name}": value for name, value in training.items()},
+            **{f"val_{name}": value for name, value in validation.items()},
+        }
+        history.append(record)
+        if config.get("checkpoint", {}).get("save", True):
+            improved = validation["loss"] < best_loss
+            best_loss = min(best_loss, validation["loss"])
+            payload = {
+                "epoch": epoch + 1,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "scheduler_state_dict": scheduler.state_dict(),
+                "config": config,
+                "metrics": record,
+                "best_loss": best_loss,
+                "rng_state": _rng_state(),
+            }
+            if psf_optimizer:
+                payload["psf_optimizer_state_dict"] = psf_optimizer.state_dict()
+                payload["psf_scheduler_state_dict"] = psf_scheduler.state_dict()
+            name = config["model"].get("name", "ifin")
+            output_dir = Path(config["checkpoint"]["output_dir"])
+            save_checkpoint(output_dir / f"{name}_last.pth", payload)
+            if improved:
+                best_name = "ifin_best.pth" if name == "ifin" else "model_best.pth"
+                save_checkpoint(output_dir / best_name, payload)
+    final = history[-1] if history else {"epoch": start_epoch}
+    return {"epochs": epochs, "history": history, "device": str(device), **final}
 
 
 def train_one_epoch(config: Dict[str, Any]) -> Dict[str, float]:
-    seed_everything(config["seed"], deterministic=config["deterministic"])
-    device = _select_device(config["device"])
-    train_loader = _build_loader(config, "train")
+    one_epoch = copy.deepcopy(config)
+    one_epoch.setdefault("train", {})["epochs"] = 1
+    result = train(one_epoch)
+    record = result["history"][-1]
+    return {
+        "loss": record["train_loss"],
+        "psnr": record["train_psnr"],
+        "device": result["device"],
+    }
 
-    model = build_ifin_model(config, _build_psf(config, device)).to(device)
-    criterion = ReconstructionLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=config["optimizer"]["lr"])
 
-    model.train()
-    total_loss = 0.0
-    total_psnr = 0.0
+def evaluate(
+    config: Dict[str, Any], checkpoint_path: str | None = None
+) -> Dict[str, float]:
+    config = copy.deepcopy(config)
+    config["phase"] = "eval"
+    device, model, _ = _setup(config, checkpoint_path)
+    names = [
+        name.lower()
+        for name in config.get("eval", {}).get("metrics", ["psnr", "ssim", "lpips"])
+    ]
+    result = _run_loader(
+        config,
+        model,
+        _build_loader(config, "eval"),
+        device,
+        ReconstructionLoss(config).to(device),
+        metric_names=names,
+    )
+    return {**result, "device": str(device), "weights_loaded": checkpoint_path is not None}
 
-    for meas_input, img_target in train_loader:
-        meas_input = meas_input.to(device)
-        img_target = img_target.to(device)
 
-        optimizer.zero_grad(set_to_none=True)
-        img_recon, meas_recon, iso_recon = model(meas_input)
-        loss = criterion(img_recon, img_target, meas_recon, meas_input)
-        loss.backward()
-        optimizer.step()
-
-        with torch.no_grad():
-            total_loss += float(loss.detach().cpu())
-            total_psnr += float(psnr(img_recon.detach(), img_target.detach()).cpu())
-
-    avg_loss = total_loss / len(train_loader)
-    avg_psnr = total_psnr / len(train_loader)
-
-    if config["checkpoint"]["save"]:
-        output_dir = Path(config["checkpoint"]["output_dir"])
-        ckpt_path = output_dir / "ifin_smoke_last.pth"
-        save_checkpoint(
-            ckpt_path,
-            {
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "config": config,
-            },
+def _load_input(path: str, config: Dict[str, Any]) -> torch.Tensor:
+    if Path(path).suffix.lower() in {".npy", ".npz"}:
+        loaded = np.load(path)
+        array = (
+            loaded[loaded.files[0]]
+            if isinstance(loaded, np.lib.npyio.NpzFile)
+            else loaded
         )
+    else:
+        from PIL import Image
 
-    return {"loss": avg_loss, "psnr": avg_psnr, "device": str(device)}
-
-
-def train(config: Dict[str, Any]) -> Dict[str, Any]:
-    seed_everything(config["seed"], deterministic=config["deterministic"])
-    device = _select_device(config["device"])
-    train_loader = _build_loader(config, "train")
-
-    model = build_ifin_model(config, _build_psf(config, device)).to(device)
-    criterion = ReconstructionLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=config["optimizer"]["lr"])
-
-    epochs = int(config.get("train", {}).get("epochs", 100))
-    history = []
-    for epoch in range(epochs):
-        model.train()
-        total_loss = 0.0
-        total_psnr = 0.0
-
-        for meas_input, img_target in train_loader:
-            meas_input = meas_input.to(device)
-            img_target = img_target.to(device)
-
-            optimizer.zero_grad(set_to_none=True)
-            img_recon, meas_recon, iso_recon = model(meas_input)
-            loss = criterion(img_recon, img_target, meas_recon, meas_input)
-            loss.backward()
-            optimizer.step()
-
-            with torch.no_grad():
-                total_loss += float(loss.detach().cpu())
-                total_psnr += float(psnr(img_recon.detach(), img_target.detach()).cpu())
-
-        avg_loss = total_loss / len(train_loader)
-        avg_psnr = total_psnr / len(train_loader)
-        history.append({"epoch": epoch + 1, "loss": avg_loss, "psnr": avg_psnr})
-
-        if config["checkpoint"]["save"]:
-            output_dir = Path(config["checkpoint"]["output_dir"])
-            ckpt_path = output_dir / "ifin_last.pth"
-            save_checkpoint(
-                ckpt_path,
-                {
-                    "epoch": epoch + 1,
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "config": config,
-                    "metrics": {"loss": avg_loss, "psnr": avg_psnr},
-                },
-            )
-
-    return {
-        "epochs": epochs,
-        "final_loss": history[-1]["loss"],
-        "final_psnr": history[-1]["psnr"],
-        "history": history,
-        "device": str(device),
-    }
+        array = np.asarray(Image.open(path))
+    if array.ndim == 2:
+        array = array[..., None]
+    if np.issubdtype(array.dtype, np.integer):
+        dtype = array.dtype
+        array = array.astype(np.float32) / np.iinfo(dtype).max
+    tensor = torch.as_tensor(array, dtype=torch.float32)
+    expected = (
+        int(config["model"]["in_channels"]),
+        int(config["model"]["height"]),
+        int(config["model"]["width"]),
+    )
+    if (
+        tensor.ndim == 3
+        and tuple(tensor.shape) != expected
+        and tensor.shape[-1] in (1, 3, 4)
+    ):
+        tensor = tensor.permute(2, 0, 1)
+    if tensor.shape[0] == 4:
+        tensor = tensor[:3]
+    if tuple(tensor.shape) != expected:
+        raise ValueError(f"Expected input shape {expected}, got {tuple(tensor.shape)}")
+    if Path(path).suffix.lower() in {".npy", ".npz"} and tensor.shape[0] == 3:
+        default_order = "bgr" if config["data"]["dataset"] in {"diffusercam", "waller"} else "rgb"
+        if config["data"].get("npy_color_order", default_order).lower() == "bgr":
+            tensor = tensor[[2, 1, 0]]
+    return tensor.unsqueeze(0)
 
 
-def evaluate(config: Dict[str, Any], checkpoint_path: str | None = None) -> Dict[str, float]:
-    seed_everything(config["seed"], deterministic=config["deterministic"])
-    device = _select_device(config["device"])
-    eval_loader = _build_loader(config, "eval")
+def _save_image(image: torch.Tensor, path: Path) -> None:
+    from PIL import Image
 
-    model = build_ifin_model(config, _build_psf(config, device)).to(device)
-    if checkpoint_path:
-        checkpoint = torch.load(checkpoint_path, map_location=device)
-        load_model_state_compat(model, checkpoint, strict=True)
+    array = (
+        (normalize_images(image)[0].permute(1, 2, 0).cpu().numpy() * 255)
+        .round()
+        .astype(np.uint8)
+    )
+    if array.shape[-1] == 1:
+        array = array[..., 0]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(array).save(path)
 
+
+def infer(
+    config: Dict[str, Any],
+    checkpoint_path: str | None = None,
+    input_path: str | None = None,
+    output_dir: str | None = None,
+) -> Dict[str, Any]:
+    device, model, _ = _setup(config, checkpoint_path)
+    measurement = (
+        _load_input(input_path, config)
+        if input_path
+        else build_dataset(config, "eval")[0][0].unsqueeze(0)
+    )
+    measurement = measurement.to(device)
     model.eval()
-    criterion = ReconstructionLoss()
-
-    total_loss = 0.0
-    total_psnr = 0.0
     with torch.no_grad():
-        for meas_input, img_target in eval_loader:
-            meas_input = meas_input.to(device)
-            img_target = img_target.to(device)
-            img_recon, meas_recon, iso_recon = model(meas_input)
-            loss = criterion(img_recon, img_target, meas_recon, meas_input)
-            total_loss += float(loss.detach().cpu())
-            total_psnr += float(psnr(img_recon.detach(), img_target.detach()).cpu())
-
-    return {
-        "loss": total_loss / len(eval_loader),
-        "psnr": total_psnr / len(eval_loader),
+        image, measurement_recon, initial = _outputs(config, model(measurement))
+    result: Dict[str, Any] = {
+        "input_shape": tuple(measurement.shape),
+        "img_recon_shape": tuple(image.shape),
         "device": str(device),
+        "weights_loaded": checkpoint_path is not None,
     }
-
-
-def infer(config: Dict[str, Any], checkpoint_path: str | None = None) -> Dict[str, Any]:
-    seed_everything(config["seed"], deterministic=config["deterministic"])
-    device = _select_device(config["device"])
-
-    model = build_ifin_model(config, _build_psf(config, device)).to(device)
-    if checkpoint_path:
-        checkpoint = torch.load(checkpoint_path, map_location=device)
-        load_model_state_compat(model, checkpoint, strict=True)
-
-    model.eval()
-    generator = torch.Generator(device="cpu").manual_seed(config["seed"] + 99)
-    meas_input = torch.rand(
-        1,
-        config["model"]["in_channels"],
-        config["model"]["height"],
-        config["model"]["width"],
-        generator=generator,
-    ).to(device)
-
-    with torch.no_grad():
-        img_recon, meas_recon, iso_recon = model(meas_input)
-
-    return {
-        "input_shape": tuple(meas_input.shape),
-        "img_recon_shape": tuple(img_recon.shape),
-        "meas_recon_shape": tuple(meas_recon.shape),
-        "iso_recon_shape": tuple(iso_recon.shape),
-        "device": str(device),
-    }
+    if measurement_recon is not None:
+        result["meas_recon_shape"] = tuple(measurement_recon.shape)
+        result["iso_recon_shape"] = tuple(initial.shape)
+    if input_path or output_dir:
+        artifact = Path(output_dir or "outputs/inference") / "reconstruction.png"
+        _save_image(image, artifact)
+        result["output"] = str(artifact)
+    return result

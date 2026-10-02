@@ -1,0 +1,40 @@
+dataset: widercam
+data:
+  psf_crop: null
+  psf_normalization: null
+eval:
+  batch_size: 1
+baselines:
+  wiener:
+    name: wiener
+    options: {psf_norm: max, psf_scale: 0.05, gaussian_windows: 3, in_channels: 3, out_channels: 3}
+  admm:
+    name: admm
+    options: {psf_norm: none, psf_scale: 1.0, iterations: 30, stacks: 1, trainable: false, fixed_parameters: [[0.000001], [0.000001], [0.000001], [0.00001]], in_channels: 3, out_channels: 3}
+  unet:
+    name: unet
+    options: {psf_norm: l2, psf_scale: 1.0, implementation: shared, in_channels: 3, out_channels: 3}
+  lensnet:
+    name: lensnet
+    options: {psf_norm: none, psf_scale: 1.0, in_channels: 3, out_channels: 3, ngf: 64}
+  nafnet:
+    name: nafnet
+    options: {psf_norm: none, psf_scale: 1.0, in_channels: 3, out_channels: 3}
+  updn:
+    name: updn
+    options: {psf_norm: none, psf_scale: 1.0, depth: 10, mix_colors: true, in_channels: 3, out_channels: 3}
+  mwdns:
+    name: mwdns
+    options: {psf_norm: none, psf_scale: 1.0, in_channels: 3, out_channels: 3}
+  multiwienernet:
+    name: multiwienernet
+    options: {psf_norm: none, psf_scale: 1.0, k: 9, implementation: shared, in_channels: 3, out_channels: 3}
+  modl:
+    name: modl
+    options: {psf_norm: none, psf_scale: 1.0, iterations: 5, psf_in_channels: 1, three_dimensional: false, in_channels: 3, out_channels: 3}
+  leadmmu:
+    name: leadmmu
+    options: {psf_norm: none, psf_scale: 1.0, iterations: 5, height: 270, width: 480, in_channels: 3, out_channels: 3}
+  deeplir:
+    name: deeplir
+    options: {psf_norm: l2, psf_scale: 1.0, iterations: 5, dim: 32, dim_mults: [1, 2, 4, 8], in_channels: 3, out_channels: 3}

@@ -1,0 +1,80 @@
+seed: 4716
+deterministic: true
+device: auto
+
+model:
+  name: ifin
+  in_channels: 3
+  out_channels: 3
+  height: 270
+  width: 480
+  dim: 32
+  depth: 3
+  k: 9
+  exchange: 0.2
+  repeat_psf: true
+  random_init: false
+  seed_blocks: rb
+  regularizer_activation: relu
+  residual: false
+  bottleneck: false
+  upsample: bicubic
+
+data:
+  dataset: widercam
+  root: ${DATA_ROOT:-data/widercam}
+  psf_path: sv_psfs/point_4_4_rgb8.png
+  raw_dir: images
+  target_dir: labels
+  train_csv: dataset_train.csv
+  eval_csv: dataset_test.csv
+  raw_suffix: _rgb8.png
+  target_suffix: .jpg
+  affine:
+    target_size: [270, 480]
+    pad: 0
+    align_corners: false
+    bbox: null
+    matrix:
+      - [0.741431858, -0.0103940972, 62.9320307]
+      - [0.0103940972, 0.741431858, 32.5871991]
+  psf_interpolation: area
+  psf_background: 0.058823529411764705
+  psf_normalization: none
+  psf_crop: [133, 236, 130, 133]
+
+train:
+  epochs: 100
+  batch_size: 4
+  num_workers: 4
+  num_samples: null
+  pin_memory: false
+
+eval:
+  batch_size: 4
+  num_workers: 4
+  num_samples: null
+  pin_memory: false
+  normalize: max
+  clip: true
+
+optimizer:
+  lr: 0.0001
+  psf_lr: 0.001
+
+loss:
+  image: 1.0
+  measurement: 0.0
+  iso: 0.0
+  psf: 0.0
+  lpips: 0.05
+  lpips_normalize: false
+
+provenance:
+  checkpoint_psf_shape_candidates:
+    - [1, 9, 130, 133]
+  paper_psf_crop_shape: [135, 135]
+
+checkpoint:
+  save: true
+  output_dir: outputs/checkpoints/widercam

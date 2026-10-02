@@ -1,472 +1,509 @@
-from __future__ import annotations
-
-from typing import Any, Dict
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from torch import nn
-
-
 from utils.operators import gaus_t, generate_roi
 
+BN_EPS = 1e-4
 
-def get_num_groups(channels: int) -> int:
+def get_num_groups(channels):
+    # Ensure num_groups divides channels
     for num_groups in [32, 16, 8, 4, 2, 1]:
         if channels % num_groups == 0:
             return num_groups
     return 1
 
+def exists(val):
+    return val is not None
+
 
 class ConvG(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, mid_channels: int | None = None, num_groups: int | None = None):
-        super().__init__()
+    """(Convolution => [GroupNorm] => GELU) * 2"""
+
+    def __init__(self, in_channels, out_channels, mid_channels=None, num_groups=None):
+        super(ConvG, self).__init__()
+        mid_channels = out_channels
         self.single_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
             nn.GroupNorm(num_groups=1, num_channels=out_channels),
-            nn.GELU(),
+            nn.GELU()
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         return self.single_conv(x)
 
-
 class SimpleGate(nn.Module):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        left, right = x.chunk(2, dim=1)
-        return left * right
+    def forward(self, x):
+        x1, x2 = x.chunk(2, dim=1)
+        return x1 * x2
 
+
+class RecB(nn.Module):
+    def __init__(self, dim, drop_prob=0.1):
+        super().__init__()
+        # 1st sub-block
+        self.norm1 = nn.GroupNorm(1, dim)            # per-pixel LN over channels
+        self.pw1   = nn.Conv2d(dim, dim, 1)       # pointwise
+        self.dw    = nn.Conv2d(dim, dim, 3, padding=1, groups=dim)
+        self.pw2   = nn.Conv2d(dim, dim*2, 1)     # for gating: 채널수 2배
+        self.sg1   = SimpleGate()
+        self.se    = nn.Sequential(               # AdaptiveAvgPool + 1×1 Conv
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(dim, dim, 1),
+        )
+        self.conv3 = nn.Conv2d(dim, dim, 3, padding=1)
+        self.drop1 = nn.Dropout(drop_prob)
+        self.beta  = nn.Parameter(torch.zeros(1, dim, 1, 1))
+
+        # 2nd sub-block
+        self.norm2 = nn.GroupNorm(1, dim)
+        self.pw3   = nn.Conv2d(dim, dim*2, 1)
+        self.sg2   = SimpleGate()
+        self.pw4   = nn.Conv2d(dim, dim, 1)
+        self.drop2 = nn.Dropout(drop_prob)
+        self.gamma = nn.Parameter(torch.zeros(1, dim, 1, 1))
+
+    def forward(self, x):
+        # --- 1st sub-block ---
+        y = self.norm1(x)
+
+        y = self.pw1(y)
+        y = self.dw(y)
+        y = self.pw2(y)
+        y = self.sg1(y)                   # simple gate
+
+        # spatial fusion via SE
+        se = self.se(x)
+        y = y * se
+
+        y = self.conv3(y)
+        y = self.drop1(y)
+        y = x + self.beta * y            # 잔차 연결
+
+        # --- 2nd sub-block ---
+        z = self.norm2(y)
+
+        z = self.pw3(z)
+        z = self.sg2(z)
+        z = self.pw4(z)
+        z = self.drop2(z)
+        z = y + self.gamma * z
+
+        return z
 
 class RB(nn.Module):
-    def __init__(self, in_ch: int, out_ch: int, num_groups: int | None = None, drop_prob: float = 0.1):
+    """
+    3×3 Conv → LN → GELU → RecB → 3×3 Conv → LN → GELU
+    """
+    def __init__(self, in_ch, out_ch, num_groups=None):
         super().__init__()
         self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
         self.norm1 = nn.GroupNorm(1, out_ch)
-        self.act = nn.GELU()
+        self.act   = nn.GELU()
 
-        self.rec_norm1 = nn.GroupNorm(1, out_ch)
-        self.rec_pw1 = nn.Conv2d(out_ch, out_ch, 1)
-        self.rec_dw = nn.Conv2d(out_ch, out_ch, 3, padding=1, groups=out_ch)
-        self.rec_pw2 = nn.Conv2d(out_ch, out_ch * 2, 1)
-        self.rec_sg1 = SimpleGate()
-        self.rec_se = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Conv2d(out_ch, out_ch, 1))
-        self.rec_conv3 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
-        self.rec_drop1 = nn.Dropout(drop_prob)
-        self.rec_beta = nn.Parameter(torch.zeros(1, out_ch, 1, 1))
-
-        self.rec_norm2 = nn.GroupNorm(1, out_ch)
-        self.rec_pw3 = nn.Conv2d(out_ch, out_ch * 2, 1)
-        self.rec_sg2 = SimpleGate()
-        self.rec_pw4 = nn.Conv2d(out_ch, out_ch, 1)
-        self.rec_drop2 = nn.Dropout(drop_prob)
-        self.rec_gamma = nn.Parameter(torch.zeros(1, out_ch, 1, 1))
+        self.rec   = RecB(out_ch)
 
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
         self.norm2 = nn.GroupNorm(1, out_ch)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.act(x)
 
-        y = self.rec_norm1(x)
-        y = self.rec_pw1(y)
-        y = self.rec_dw(y)
-        y = self.rec_pw2(y)
-        y = self.rec_sg1(y)
-        y = y * self.rec_se(x)
-        y = self.rec_conv3(y)
-        y = self.rec_drop1(y)
-        y = x + self.rec_beta * y
-
-        z = self.rec_norm2(y)
-        z = self.rec_pw3(z)
-        z = self.rec_sg2(z)
-        z = self.rec_pw4(z)
-        z = self.rec_drop2(z)
-        x = y + self.rec_gamma * z
+        x = self.rec(x)
 
         x = self.conv2(x)
         x = self.norm2(x)
         x = self.act(x)
         return x
-
-
 class ISO(nn.Module):
-    """Inverse System Operator."""
+    """
+    'W' 클래스를 기반으로, WieNer_SV(멀티 커널, k 차원, kernel_weights 등) 기능을 결합하되
+    추가적인 패딩 없이 FFT를 수행하는 예시.
 
-    def __init__(self, channels: int, height: int, width: int, psf_height: int, psf_width: int, k: int = 16):
-        super().__init__()
-        self.psf_weights = nn.Parameter(torch.ones(k, channels, 1, 1) * 0.01)
+    Args:
+        channels (int): 입력/출력 채널 수
+        height (int): 이미지 높이(H)
+        width (int):  이미지 너비(W)
+        k (int): 추가로 사용할 PSF(또는 ROI) 개수
+    """
+    def __init__(self, channels, height, width, height_p, width_p, k=16):
+        super(ISO, self).__init__()
+        self.height_freq = height + height_p
+        self.width_freq = (width + width_p)// 2 + 1
+
+        self.psf_weights = nn.Parameter(
+            torch.ones(k, channels, self.height_freq, self.width_freq) * 0.01
+        )
+        num_groups = get_num_groups(channels)
         self.group_norm = nn.GroupNorm(num_groups=1, num_channels=channels)
-        self.alpha = nn.Parameter(torch.ones(k, 1, 1, 1) * 1, requires_grad=True)
-        self.kernel_weights = nn.Parameter(generate_roi(k, height, width), requires_grad=False)
-        self.relu = nn.ReLU()
+
+        self.alpha = nn.Parameter(torch.ones(k, 1, 1, 1) * 1,
+                                           requires_grad=True)
+        self.kernel_weights = nn.Parameter(generate_roi(k, height, width),
+                                           requires_grad=True)
+        self.relu = nn.ReLU()#Maxout(channels, channels)#
         self.k = k
 
-    def forward(self, measurement: torch.Tensor, psf: torch.Tensor, epsilon: float = 1e-6) -> torch.Tensor:
-        _, _, img_h, img_w = measurement.shape
-        _, _, psf_h, psf_w = psf.shape
+    def forward(self, raw: torch.Tensor, psf: torch.Tensor, epsilon=1e-6) -> torch.Tensor:
+        """
+        Args:
+            raw (torch.Tensor): (B, C, H, W) 형태의 입력
+            psf (torch.Tensor): (B, C, H_p, W_p) 형태의 PSF (혹은 동일 크기 H, W일 수도 있음)
+            epsilon (float): Regularization 파라미터
 
-        psf = psf.reshape(self.k, -1, psf.size(-2), psf.size(-1))
-        psf_sum = psf.sum(dim=(-2, -1), keepdim=True)
+        Returns:
+            torch.Tensor: (B, C, H, W) 형태의 복원 결과
+        """
+        B, C, H, W = raw.shape
+        _, _, H_p, W_p = psf.shape
+
+        psf = psf.reshape(self.k,-1,psf.size(-2),psf.size(-1))
+        psf_sum = psf.sum(dim=(-2, -1), keepdim=True)          # (B, C, 1, 1)
         psf_normalized = psf / (psf_sum.abs() * self.alpha + 1e-12)
 
-        measurement_padded = F.pad(
-            measurement,
-            (psf_w // 2, psf_w - psf_w // 2, psf_h // 2, psf_h - psf_h // 2),
-            mode="replicate",
+        # Apply symmetric padding to raw input
+        raw_padded = F.pad(
+            raw,
+            (W_p // 2, W_p - W_p // 2, H_p // 2, H_p - H_p // 2),
+            mode='replicate'
         )
-        measurement_padded = gaus_t(measurement_padded, fwhm=2)
-        psf_padded = F.pad(psf_normalized, (img_w // 2, img_w - img_w // 2, img_h // 2, img_h - img_h // 2), mode="constant")
+        raw_padded = gaus_t(raw_padded, fwhm=2)
+        psf_padded = F.pad(
+            psf_normalized,
+            (W // 2, W - W // 2, H // 2, H - H // 2),
+            mode='constant'
+        )
 
-        measurement_fft = torch.fft.rfft2(measurement_padded, dim=(-2, -1))
-        psf_fft = torch.fft.rfft2(psf_padded, s=(measurement_padded.size(-2), measurement_padded.size(-1)), dim=(-2, -1))
+        # Compute FFT with 'ortho' normalization to maintain energy
+        raw_fft = torch.fft.rfft2(raw_padded, dim=(-2, -1))  # Shape: (B, C, H_freq, W_freq)
+        psf_fft = torch.fft.rfft2(psf_padded, s=(raw_padded.size(-2), raw_padded.size(-1)), dim=(-2, -1))  # Shape: (B, C, H_freq, W_freq)
 
-        spectral_reg = self.relu(self.psf_weights)
-        wiener_filter = psf_fft.conj() / (psf_fft.abs() ** 2 + epsilon + spectral_reg)
-        inverse_fft = measurement_fft.unsqueeze(0) * wiener_filter.unsqueeze(1)
+        pw = self.relu(self.psf_weights)
+        wiener_filter = psf_fft.conj() / (psf_fft.abs()**2 + epsilon + pw)
+        out_fft = raw_fft.unsqueeze(0) * wiener_filter.unsqueeze(1)  # (k, B, C, H, W//2+1)
 
-        inverse_spatial = torch.fft.irfft2(inverse_fft, dim=(-2, -1))
-        inverse_spatial = torch.fft.ifftshift(inverse_spatial, dim=(-2, -1))
-        crop_h_start = psf_h // 2
-        crop_w_start = psf_w // 2
-        inverse_crop = inverse_spatial[..., crop_h_start : crop_h_start + img_h, crop_w_start : crop_w_start + img_w]
-        roi_weights = self.kernel_weights.unsqueeze(1).unsqueeze(1)
-        inverse_crop = (inverse_crop * roi_weights).sum(dim=0)
-        return self.group_norm(inverse_crop.real)
+        out_spatial = torch.fft.irfft2(out_fft, dim=(-2, -1))
+        out_spatial = torch.fft.ifftshift(out_spatial, dim=(-2, -1))
+        start_H = H_p // 2
+        start_W = W_p // 2
+        out_cropped = out_spatial[..., start_H:start_H + H, start_W:start_W + W]  # Shape: (N, B, C, H, W)
+        kw = self.kernel_weights.unsqueeze(1).unsqueeze(1)  # (k, 1, 1, H, W)
+        out_cropped = (out_cropped * kw).sum(dim=0)         # (B, C, H, W)
 
+        return self.group_norm(out_cropped.real)
 
 class FSO(nn.Module):
-    """Forward System Operator."""
+    """
+    Performs 2D convolution using Fast Fourier Transform (FFT) operations with enhanced normalization and scaling control.
 
-    def __init__(self, in_channels: int, height: int, width: int, psf_height: int, psf_width: int, init_scale: float = 1.0, k: int = 16):
-        super().__init__()
+    Args:
+        in_channels (int): Number of input channels.
+        init_scale (float): Initial scaling factor for the output.
+    """
+    def __init__(self, in_channels, height, width, height_p, width_p, init_scale=1.0, k=16):
+        super(FSO, self).__init__()
         self.alpha = nn.Parameter(torch.ones(1, 1, 1, 1) * 1)
+        num_groups = get_num_groups(in_channels)
         self.group_norm = nn.GroupNorm(num_groups=1, num_channels=in_channels)
+        # self.kernel_weights = nn.Parameter(generate_roi(k, height, width), requires_grad=False)
         self.k = k
 
-    def forward(self, image: torch.Tensor, psf: torch.Tensor) -> torch.Tensor:
-        _, _, img_h, img_w = image.shape
-        _, _, psf_h, psf_w = psf.shape
+    def forward(self, x, p):
+        """
+        Forward pass for FFT-based convolution with enhanced normalization and scaling.
 
-        psf = psf.reshape(self.k, -1, psf.size(-2), psf.size(-1)).mean(dim=0, keepdim=True)
-        psf_sum = psf.sum(dim=(-2, -1), keepdim=True)
-        psf_normalized = psf / (abs(psf_sum * self.alpha) + 1e-12)
+        Args:
+            x (torch.Tensor): Input tensor of shape (B, C, H, W)
+            p (torch.Tensor): Point Spread Function tensor of shape (B, C, H_p, W_p)
 
-        image_padded = F.pad(
-            image,
-            (psf_w // 2, psf_w - psf_w // 2, psf_h // 2, psf_h - psf_h // 2),
-            mode="constant",
+        Returns:
+            torch.Tensor: Convolved and normalized output tensor of shape (B, C, H, W)
+        """
+        # Compute padding sizes
+        B, C, H, W = x.shape
+        _, _, H_p, W_p = p.shape
+
+        # Ensure p is normalized to prevent scale amplification
+        p = p.reshape(self.k, -1, p.size(-2), p.size(-1)).mean(dim=0, keepdim=True)
+        p_sum = p.sum(dim=(-2, -1), keepdim=True)
+        p_normalized = p / (abs(p_sum * self.alpha) + 1e-12)  # Prevent division by zero
+
+        # Apply symmetric padding to raw input
+        x_padded = F.pad(
+            x,
+            (W_p // 2, W_p - W_p // 2, H_p // 2, H_p - H_p // 2),
+            mode='constant'
         )
-        psf_padded = F.pad(psf_normalized, (img_w // 2, img_w - img_w // 2, img_h // 2, img_h - img_h // 2), mode="constant")
+        p_normalized = F.pad(
+            p_normalized,
+            (W // 2, W - W // 2, H // 2, H - H // 2),
+            mode='constant'
+        )
 
-        image_fft = torch.fft.rfft2(image_padded, dim=(-2, -1))
-        psf_fft = torch.fft.rfft2(psf_padded, s=(image_padded.size(-2), image_padded.size(-1)), dim=(-2, -1))
-        forward_fft = image_fft * psf_fft
-        forward_spatial = torch.fft.irfft2(forward_fft, s=(image_padded.size(-2), image_padded.size(-1)), dim=(-2, -1))
-        forward_spatial = torch.fft.ifftshift(forward_spatial, dim=(-2, -1))
+        X = torch.fft.rfft2(x_padded, dim=(-2, -1))  # Shape: (B, C, H_freq, W_freq)
+        P = torch.fft.rfft2(p_normalized, s=(x_padded.size(-2), x_padded.size(-1)), dim=(-2, -1))  # Shape: (B, C, H_freq, W_freq)
 
-        crop_h_start = psf_h // 2
-        crop_w_start = psf_w // 2
-        forward_crop = forward_spatial[:, :, crop_h_start : crop_h_start + img_h, crop_w_start : crop_w_start + img_w]
-        return self.group_norm(forward_crop.real).real
+        # Element-wise multiplication in frequency domain
+        Y = X * P
+        # Inverse FFT to spatial domain
+        y = torch.fft.irfft2(Y, s=(x_padded.size(-2), x_padded.size(-1)), dim=(-2, -1))  # Shape: (B, C, H, W)
+        # Shift zero frequency component to the center
+        y = torch.fft.ifftshift(y, dim=(-2, -1))
 
+#         kw = self.kernel_weights.unsqueeze(1).unsqueeze(2)  # (k, 1, 1, H, W)
+#         y = y * kw             # (k, B, C, H, W)
+#         y = y.sum(dim=0, keepdim=False)
+
+        # Crop to original input size
+        start_H = H_p // 2
+        start_W = W_p // 2
+        y_cropped = y[:, :, start_H:start_H + H, start_W:start_W + W]
+
+        # Normalize using GroupNorm
+        y_normalized = self.group_norm(y_cropped.real)
+        return y_normalized.real
 
 class IFIB(nn.Module):
-    """Integrated Forward-Inverse Block."""
 
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        height: int,
-        width: int,
-        psf_height: int,
-        psf_width: int,
-        block_cls: type[nn.Module] = RB,
-        exchange: float = 0.2,
-        k: int = 16,
-        pass_fso_to_inverse: bool = True,
-        pass_iso_to_forward: bool = True,
-    ):
-        super().__init__()
-        self.iso_operator = ISO(in_channels, height, width, psf_height, psf_width, k=k)
-        self.fso_operator = FSO(in_channels, height, width, psf_height, psf_width, k=k)
-        self.pass_fso_to_inverse = pass_fso_to_inverse
-        self.pass_iso_to_forward = pass_iso_to_forward
+    def __init__(self, in_channels, out_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=16):
+        super(IFIB, self).__init__()
+        self.iso = ISO(in_channels, height, width, height_p, width_p, k=k)
+        self.fso = FSO(in_channels, height, width, height_p, width_p, k=k)
 
-        self.inverse_branch_block = block_cls(in_channels, out_channels, num_groups=1)
-        self.forward_branch_block = block_cls(in_channels, out_channels, num_groups=1)
-        self.inverse_residual_projection = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        self.forward_residual_projection = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        self.residual = False
+        self.block_cls = block_cls
+        self.in_channels = in_channels
 
-        self.forward_self_mix = nn.Parameter(torch.full((1, 1, 1, 1), 1 - exchange, dtype=torch.float32), requires_grad=True)
-        self.forward_cross_mix = nn.Parameter(torch.full((1, 1, 1, 1), exchange, dtype=torch.float32), requires_grad=True)
-        self.inverse_self_mix = nn.Parameter(torch.full((1, 1, 1, 1), 1 - exchange, dtype=torch.float32), requires_grad=True)
-        self.inverse_cross_mix = nn.Parameter(torch.full((1, 1, 1, 1), exchange, dtype=torch.float32), requires_grad=True)
+        self.conv1_w = self.create_block(block_cls, in_channels, out_channels)
+        self.conv1_c = self.create_block(block_cls, in_channels, out_channels)
+        # self.conv2_w = self.create_block(block_cls, in_channels, out_channels)
+        # self.conv2_c = self.create_block(block_cls, in_channels, out_channels)
+        self.res_conv_w = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        self.res_conv_c = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
 
-    def forward(self, inverse_feature: torch.Tensor, forward_feature: torch.Tensor, psf_feature: torch.Tensor):
-        inverse_cross = self.iso_operator(forward_feature, psf_feature) if self.pass_iso_to_forward else inverse_feature
-        forward_cross = self.fso_operator(inverse_feature, psf_feature) if self.pass_fso_to_inverse else forward_feature
+        self.alpha_c = nn.Parameter(torch.full((1, 1, 1, 1), 1-exchange, dtype=torch.float32),
+                                    requires_grad=True)
+        self.delta_c = nn.Parameter(torch.full((1, 1, 1, 1), exchange, dtype=torch.float32),
+                                    requires_grad=True)
+        self.alpha_w = nn.Parameter(torch.full((1, 1, 1, 1), 1-exchange, dtype=torch.float32),
+                                    requires_grad=True)
+        self.delta_w = nn.Parameter(torch.full((1, 1, 1, 1), exchange, dtype=torch.float32),
+                                    requires_grad=True)
 
-        inverse_feature = self.inverse_branch_block(
-            inverse_feature * self.inverse_self_mix + inverse_cross * self.inverse_cross_mix
-        )
-        forward_feature = self.forward_branch_block(
-            forward_feature * self.forward_self_mix + forward_cross * self.forward_cross_mix
-        )
-        return inverse_feature, forward_feature
+    def create_block(self, block_cls, in_channels, out_channels):
+        num_groups = get_num_groups(in_channels)
+        return block_cls(in_channels, out_channels, num_groups=1)
 
+    def forward(self, w, c, p):
+        w_skip = w
+        c_skip = c
 
-class IFINUpBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        mid_channels: int,
-        height: int,
-        width: int,
-        psf_height: int,
-        psf_width: int,
-        block_cls: type[nn.Module] = RB,
-        exchange: float = 0.2,
-        k: int = 16,
-        pass_fso_to_inverse: bool = True,
-        pass_iso_to_forward: bool = True,
-    ):
-        super().__init__()
-        self.inverse_upsample = nn.Upsample(scale_factor=2, mode="bicubic", align_corners=True)
-        self.forward_upsample = nn.Upsample(scale_factor=2, mode="bicubic", align_corners=True)
-        self.ifib_block = IFIB(
-            mid_channels,
-            out_channels,
-            height,
-            width,
-            psf_height,
-            psf_width,
-            block_cls=block_cls,
-            exchange=exchange,
-            k=k,
-            pass_fso_to_inverse=pass_fso_to_inverse,
-            pass_iso_to_forward=pass_iso_to_forward,
-        )
-        self.inverse_merge_projection = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
-        self.forward_merge_projection = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
+        # Apply W and C modules
+        w_ = self.iso(c, p)
+        # w_ = w
+        c_ = self.fso(w, p)
+        # c_ = c
 
-    def forward(
-        self,
-        inverse_feature_up: torch.Tensor,
-        inverse_feature_skip: torch.Tensor,
-        forward_feature_up: torch.Tensor,
-        forward_feature_skip: torch.Tensor,
-        psf_feature: torch.Tensor,
-    ):
-        inverse_feature_up = self.inverse_upsample(inverse_feature_up)
-        forward_feature_up = self.forward_upsample(forward_feature_up)
+        w = self.conv1_w(w * self.alpha_w + w_ * self.delta_w)
+        c = self.conv1_c(c * self.alpha_c + c_ * self.delta_c)
 
-        diff_y = inverse_feature_skip.size()[2] - inverse_feature_up.size()[2]
-        diff_x = inverse_feature_skip.size()[3] - inverse_feature_up.size()[3]
-        inverse_feature_up = F.pad(inverse_feature_up, [diff_x // 2, diff_x - diff_x // 2, diff_y // 2, diff_y - diff_y // 2])
-        forward_feature_up = F.pad(forward_feature_up, [diff_x // 2, diff_x - diff_x // 2, diff_y // 2, diff_y - diff_y // 2])
+        # Combine with skips and residuals
+        if self.residual:
+            w = w + self.res_conv_w(w_skip)
+            c = c + self.res_conv_c(c_skip)
+        return w, c
 
-        inverse_feature = torch.cat([inverse_feature_skip, inverse_feature_up], dim=1)
-        forward_feature = torch.cat([forward_feature_skip, forward_feature_up], dim=1)
-        inverse_feature = self.inverse_merge_projection(inverse_feature)
-        forward_feature = self.forward_merge_projection(forward_feature)
-        return self.ifib_block(inverse_feature, forward_feature, psf_feature)
+class UpsampleIFIB(nn.Module):
+    """Upscaling then DoubleConvG with IFIB."""
 
+    def __init__(self, in_channels, out_channels, mid_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=16):
+        super(UpsampleIFIB, self).__init__()
+        self.upw = nn.Upsample(scale_factor=2, mode='bicubic', align_corners=True)
+        self.upc = nn.Upsample(scale_factor=2, mode='bicubic', align_corners=True)
+        self.ifib = IFIB(mid_channels, out_channels, height, width, height_p, width_p, block_cls=block_cls, exchange=exchange, k=k)
+        self.convw1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
+        self.convc1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
 
-class IFINDownBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        height: int,
-        width: int,
-        psf_height: int,
-        psf_width: int,
-        block_cls: type[nn.Module] = RB,
-        exchange: float = 0.2,
-        k: int = 16,
-        pass_fso_to_inverse: bool = True,
-        pass_iso_to_forward: bool = True,
-    ):
-        super().__init__()
-        self.spatial_pool = nn.AvgPool2d(2)
-        self.ifib_block = IFIB(
-            in_channels,
-            out_channels,
-            height,
-            width,
-            psf_height,
-            psf_width,
-            block_cls=block_cls,
-            exchange=exchange,
-            k=k,
-            pass_fso_to_inverse=pass_fso_to_inverse,
-            pass_iso_to_forward=pass_iso_to_forward,
-        )
-        self.psf_block = ConvG(in_channels * k, out_channels * k)
+    def forward(self, w1, w2, c1, c2, p):
+        w1 = self.upw(w1)
+        c1 = self.upc(c1)
+        diffY = w2.size()[2] - w1.size()[2]
+        diffX = w2.size()[3] - w1.size()[3]
+        w1 = F.pad(w1, [diffX // 2, diffX - diffX // 2,
+                        diffY // 2, diffY - diffY // 2])
+        c1 = F.pad(c1, [diffX // 2, diffX - diffX // 2,
+                        diffY // 2, diffY - diffY // 2])
+        w = torch.cat([w2, w1], dim=1)
+        c = torch.cat([c2, c1], dim=1)
+        w = self.convw1(w)
+        c = self.convc1(c)
+        w, c = self.ifib(w, c, p)
+        return w, c
 
-    def forward(self, inverse_feature: torch.Tensor, forward_feature: torch.Tensor, psf_feature: torch.Tensor):
-        inverse_feature = self.spatial_pool(inverse_feature)
-        forward_feature = self.spatial_pool(forward_feature)
-        psf_feature = self.spatial_pool(psf_feature)
-        inverse_feature, forward_feature = self.ifib_block(inverse_feature, forward_feature, psf_feature)
-        psf_feature = self.psf_block(psf_feature)
-        return inverse_feature, forward_feature, psf_feature
+class DownsampleIFIB(nn.Module):
+    """Downscaling with average pooling followed by IFIB."""
+
+    def __init__(self, in_channels, out_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=16):
+        super(DownsampleIFIB, self).__init__()
+        self.pool = nn.AvgPool2d(2)
+        self.ifib = IFIB(in_channels, out_channels, height, width, height_p, width_p, block_cls=block_cls, exchange=exchange, k=k)
+        self.conv_block = ConvG(in_channels * k, out_channels * k)
+
+    def forward(self, w, c, p):
+        w = self.pool(w)
+        c = self.pool(c)
+        p = self.pool(p)
+        w, c = self.ifib(w, c, p)
+        p = self.conv_block(p)
+        return w, c, p
+
 
 
 class IFINNet(nn.Module):
-    """Integrated Forward-Inverse Network."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        psf: torch.Tensor,
-        height: int = 270,
-        width: int = 480,
-        dim: int = 32,
-        depth: int = 3,
-        block_cls: type[nn.Module] = RB,
-        exchange: float = 0.2,
-        k: int = 16,
-        repeat: bool = True,
-        random: bool = False,
-    ):
+    def __init__(self, in_channels, out_channels, psf, height=270, width=480, dim=32, depth=3, block_cls=RB, exchange=0.2, k=16, repeat=True, random=False,
+                 seed_blocks="rb", bottleneck=False, residual=False,
+                 upsample="bicubic", regularizer_activation="relu"):
         super().__init__()
+        if depth < 2:
+            raise ValueError("IFIN requires depth >= 2")
+        if seed_blocks not in {"rb", "conv"}:
+            raise ValueError("seed_blocks must be rb or conv")
+        if upsample not in {"bicubic", "bilinear"}:
+            raise ValueError("upsample must be bicubic or bilinear")
+        if regularizer_activation not in {"relu", "sigmoid"}:
+            raise ValueError("regularizer_activation must be relu or sigmoid")
+        self.height, self.width = height, width
         self.psf = psf
-        _, _, psf_height, psf_width = psf.size()
+        _, _, height_p, width_p = psf.size()
         self.depth = depth
-        self.psf = nn.Parameter(psf.repeat(1, k, 1, 1), requires_grad=True) if repeat else nn.Parameter(psf, requires_grad=True)
-        if random:
-            nn.init.xavier_uniform_(self.psf)
-
+        if repeat: self.psf = nn.Parameter(psf.repeat(1,k,1,1), requires_grad=True)
+        else: self.psf = nn.Parameter(psf, requires_grad=True)
+        if random: nn.init.xavier_uniform_(self.psf)
         channels = [dim * (2 ** i) for i in range(depth)]
-        heights = [height // (2 ** i) for i in range(depth + 1)]
-        widths = [width // (2 ** i) for i in range(depth + 1)]
-        psf_heights = [psf_height // (2 ** i) for i in range(depth + 1)]
-        psf_widths = [psf_width // (2 ** i) for i in range(depth + 1)]
+        h = [height // (2 ** i) for i in range(depth+1)]
+        w = [width // (2 ** i) for i in range(depth+1)]
+        h_p = [height_p // (2 ** i) for i in range(depth+1)]
+        w_p = [width_p // (2 ** i) for i in range(depth+1)]
+        self.initial_iso = ISO(in_channels, h[0], w[0], h_p[0], w_p[0], k=k)
 
-        self.initial_iso_operator = ISO(in_channels, heights[0], widths[0], psf_heights[0], psf_widths[0], k=k)
-        self.inverse_seed_block = self.create_block(block_cls, in_channels, channels[0])
-        self.forward_seed_block = self.create_block(block_cls, in_channels, channels[0])
-        self.psf_encoder = ConvG(self.psf.size(1), channels[0] * k)
+        # self.start_w = nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1, bias=True)
+        # self.start_c = nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1, bias=True)
+        # self.start_p = nn.Conv2d(self.psf.size(1), channels[0] * k, kernel_size=3, padding=1, bias=True)
 
-        self.down_blocks = nn.ModuleList()
-        for idx in range(depth):
-            if idx < depth - 1:
-                down_out_channels = channels[idx + 1]
+        if seed_blocks == "conv":
+            self.start_w = nn.Conv2d(in_channels, channels[0], 3, padding=1, bias=True)
+            self.start_c = nn.Conv2d(in_channels, channels[0], 3, padding=1, bias=True)
+            self.start_p = nn.Conv2d(self.psf.size(1), channels[0] * k, 3, padding=1, bias=True)
+        else:
+            self.start_w = self.create_block(block_cls, in_channels, channels[0])
+            self.start_c = self.create_block(block_cls, in_channels, channels[0])
+            self.start_p = ConvG(self.psf.size(1), channels[0] * k)
+
+
+        # Create downsampling layers
+        self.down_layers = nn.ModuleList()
+        for i in range(depth):
+            if i == 0:
+                self.down_layers.append(
+                    DownsampleIFIB(channels[i], channels[i+1], h[i+1], w[i+1], h_p[i+1], w_p[i+1], block_cls=block_cls, exchange=exchange, k=k))
+            elif i < depth - 1:
+                self.down_layers.append(
+                    DownsampleIFIB(channels[i], channels[i+1], h[i+1], w[i+1], h_p[i+1], w_p[i+1], block_cls=block_cls, exchange=exchange, k=k))
             else:
-                down_out_channels = channels[idx]
-            self.down_blocks.append(
-                IFINDownBlock(
-                    channels[idx],
-                    down_out_channels,
-                    heights[idx + 1],
-                    widths[idx + 1],
-                    psf_heights[idx + 1],
-                    psf_widths[idx + 1],
-                    block_cls=block_cls,
-                    exchange=exchange,
-                    k=k,
-                    pass_fso_to_inverse=True,
-                    pass_iso_to_forward=True,
-                )
-            )
+                # For the last downsampling layer, in_channels = out_channels
+                self.down_layers.append(
+                    DownsampleIFIB(channels[i], channels[i], h[i+1], w[i+1], h_p[i+1], w_p[i+1], block_cls=block_cls, exchange=exchange, k=k))
 
-        self.up_blocks = nn.ModuleList()
-        for idx in range(depth - 1, -1, -1):
-            if idx == 0:
-                self.up_blocks.append(
-                    IFINUpBlock(
-                        channels[0] * 2,
-                        channels[0],
-                        channels[0],
-                        heights[0],
-                        widths[0],
-                        psf_heights[0],
-                        psf_widths[0],
-                        block_cls=block_cls,
-                        exchange=exchange,
-                        k=k,
-                    )
+        # Create upsampling layers
+        self.up_layers = nn.ModuleList()
+        for i in range(depth - 1, -1, -1):
+            if i == 0:
+                self.up_layers.append(
+                    UpsampleIFIB(channels[0]*2, channels[0], channels[0], h[0], w[0], h_p[0], w_p[0], block_cls=block_cls, exchange=exchange, k=k)
                 )
             else:
-                self.up_blocks.append(
-                    IFINUpBlock(
-                        channels[idx] * 2,
-                        channels[idx - 1],
-                        channels[idx],
-                        heights[idx],
-                        widths[idx],
-                        psf_heights[idx],
-                        psf_widths[idx],
-                        block_cls=block_cls,
-                        exchange=exchange,
-                        k=k,
-                    )
+                self.up_layers.append(
+                    UpsampleIFIB(channels[i]*2, channels[i-1], channels[i], h[i], w[i], h_p[i], w_p[i],block_cls=block_cls, exchange=exchange, k=k)
                 )
 
-        self.inverse_refine_block = self.create_block(block_cls, channels[0], channels[0])
-        self.inverse_output_head = nn.Conv2d(channels[0], out_channels, kernel_size=3, padding=1, stride=1, bias=True)
-        self.forward_refine_block = self.create_block(block_cls, channels[0], channels[0])
-        self.forward_output_head = nn.Conv2d(channels[0], out_channels, kernel_size=3, padding=1, stride=1, bias=True)
+        if bottleneck:
+            self.center_layers = IFIB(channels[-1], channels[-1], h[-1], w[-1],
+                                     h_p[-1], w_p[-1], block_cls=block_cls, exchange=exchange, k=k)
 
-    def create_block(self, block_cls: type[nn.Module], in_channels: int, out_channels: int) -> nn.Module:
-        _ = get_num_groups(in_channels)
+        self.refine_w = self.create_block(block_cls, channels[0], channels[0])
+        self.out_w = nn.Conv2d(channels[0], out_channels, kernel_size=3, padding=1, stride=1, bias=True)
+        self.refine_c = self.create_block(block_cls, channels[0], channels[0])
+        self.out_c = nn.Conv2d(channels[0], out_channels, kernel_size=3, padding=1, stride=1, bias=True)
+        for module in self.modules():
+            if isinstance(module, ISO):
+                module.relu = nn.ReLU() if regularizer_activation == "relu" else nn.Sigmoid()
+            elif isinstance(module, IFIB):
+                module.residual = residual
+            elif isinstance(module, nn.Upsample):
+                module.mode = upsample
+
+
+    def create_block(self, block_cls, in_channels, out_channels):
+        num_groups = get_num_groups(in_channels)
         return block_cls(in_channels, out_channels, num_groups=1)
 
-    def forward(self, meas_input: torch.Tensor):
-        psf_feature = self.psf
-        inverse_feature = self.inverse_seed_block(torch.zeros_like(meas_input))
-        forward_feature = self.forward_seed_block(meas_input)
-        psf_feature = self.psf_encoder(psf_feature)
+    def forward(self, x):
+        if tuple(x.shape[-2:]) != (self.height, self.width):
+            raise ValueError(f"Expected {self.height}x{self.width} input; got {tuple(x.shape[-2:])}")
+        p = self.psf
+        x_wiener = self.initial_iso(x, p)
+        w = self.start_w(x_wiener)
+        c = self.start_c(x)
+        p = self.start_p(p)
 
-        inverse_skips = [inverse_feature]
-        forward_skips = [forward_feature]
-        psf_skips = [psf_feature]
+        w_feats = [w]
+        c_feats = [c]
+        p_feats = [p]
 
-        for depth_idx in range(self.depth):
-            inverse_feature, forward_feature, psf_feature = self.down_blocks[depth_idx](
-                inverse_skips[-1], forward_skips[-1], psf_skips[-1]
-            )
-            psf_skips.append(psf_feature)
-            inverse_skips.append(inverse_feature)
-            forward_skips.append(forward_feature)
+        # Downsampling
+        for i in range(self.depth):
+            w, c, p = self.down_layers[i](w_feats[-1], c_feats[-1], p_feats[-1])
+            p_feats.append(p)
+            w_feats.append(w)
+            c_feats.append(c)
 
-        for up_idx in range(self.depth):
-            skip_idx = -(up_idx + 2)
-            psf_skip = psf_skips[skip_idx]
-            inverse_skip = inverse_skips[skip_idx]
-            forward_skip = forward_skips[skip_idx]
-            inverse_feature, forward_feature = self.up_blocks[up_idx](
-                inverse_feature,
-                inverse_skip,
-                forward_feature,
-                forward_skip,
-                psf_skip,
-            )
+        if hasattr(self, "center_layers"):
+            w, c = self.center_layers(w, c, p)
 
-        img_inverse = self.inverse_output_head(self.inverse_refine_block(inverse_feature))
-        img_forward = self.forward_output_head(self.forward_refine_block(forward_feature))
-        return img_inverse, img_forward, img_inverse
+        # Upsampling
+        for i in range(self.depth):
+            idx = -(i + 2)
+            p_feat = p_feats[idx]
+            w_prev = w_feats[idx]
+            c_prev = c_feats[idx]
+            up_layer = self.up_layers[i]
+            w, c = up_layer(w, w_prev, c, c_prev, p_feat)
+
+        out_w = self.out_w(self.refine_w(w))
+        out_c = self.out_c(self.refine_c(c))
+        return out_w, out_c, x_wiener
 
 
-def build_ifin_model(config: Dict[str, Any], psf_tensor: torch.Tensor) -> nn.Module:
-    model_cfg = config["model"]
-    return IFINNet(
-        in_channels=model_cfg["in_channels"],
-        out_channels=model_cfg["out_channels"],
-        psf=psf_tensor,
-        height=model_cfg["height"],
-        width=model_cfg["width"],
-        dim=model_cfg["dim"],
-        depth=model_cfg["depth"],
-        block_cls=RB,
-        exchange=model_cfg["exchange"],
-        k=model_cfg["k"],
-        repeat=model_cfg["repeat_psf"],
-        random=model_cfg["random_init_psf"],
-    )
+IFIN = IFINNet
+
+
+def build_ifin_model(config, psf, checkpoint=None):
+    options = dict(config["model"])
+    options.pop("name", None)
+    options.pop("options", None)
+    repeat = options.pop("repeat_psf", True)
+    random_init = options.pop("random_init", False)
+    center_index = config["data"].get("psf_center_index", 4)
+    if checkpoint is not None:
+        from utils.checkpoint import extract_state_dict
+        state = extract_state_dict(checkpoint)
+        learned_psf = state.get("psf")
+        if learned_psf is not None:
+            psf = learned_psf.detach().clone()
+            repeat = False
+            random_init = False
+    elif config["data"].get("dataset") == "multiwienernet":
+        psf = psf[:, center_index:center_index + 1]
+    return IFINNet(psf=psf, repeat=repeat, random=random_init, block_cls=RB, **options)

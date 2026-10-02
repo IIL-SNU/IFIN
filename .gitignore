@@ -23,6 +23,7 @@ htmlcov/
 
 # Runtime outputs
 outputs/
+external_baselines/
 wandb/
 
 # Build artifacts

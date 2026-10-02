@@ -131,6 +131,10 @@ IFIN also transfers to simulated inline holography reconstruction by replacing t
 
 ## Installation
 
+Python 3.10 or newer is required. Install a CUDA-compatible PyTorch build first
+when running on a GPU. Perceptual losses and metrics may download VGG weights
+on first use; the smoke configuration does not require them.
+
 ```bash
 git clone https://github.com/IIL-SNU/IFIN.git
 cd IFIN
@@ -141,46 +145,89 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-The default configuration follows the DiffuserCam/Waller-style paired dataset layout. For a dependency and code-path smoke test without external data, switch `data.dataset` in `configs/default.yaml` to `synthetic`.
+IFIN has one implementation, `src/models/ifin.py`, with paper names
+`IFINNet`, `IFIB`, `FSO`, `ISO`, and `RB`. Dataset and historical
+architecture differences are configured in YAML, not separate model files.
 
-Train:
+| Dataset | Configuration | Evaluation notebook |
+| --- | --- | --- |
+| WiderCam | `configs/widercam.yaml` | [WiderCam](notebooks/eval_widercam.ipynb) |
+| DiffuserCam | `configs/diffusercam.yaml` | [DiffuserCam](notebooks/eval_diffusercam.ipynb) |
+| MultiWienerNet | `configs/multiwienernet.yaml` | [MultiWienerNet](notebooks/eval_multiwienernet.ipynb) |
+
+Set `DATA_ROOT` to the selected dataset's root or pass `--data-root`.
+PSF paths are relative to that root unless an absolute `--psf-path` is supplied.
 
 ```bash
-python train.py --config configs/default.yaml
+python train.py --config configs/widercam.yaml --data-root /path/to/WiderCam
+python eval.py --config configs/widercam.yaml --data-root /path/to/WiderCam --checkpoint /path/to/ifin_checkpoint.pth
+python infer.py --config configs/widercam.yaml --data-root /path/to/WiderCam --checkpoint /path/to/ifin_checkpoint.pth --output-dir outputs/reconstruction
 ```
 
-Evaluate:
+Inference accepts `--input measurement.png` or `--input measurement.npy`;
+without it, the first test sample is used. NumPy DiffuserCam measurements use
+the dataset's BGR-to-RGB conversion. Checkpoints are loaded strictly, including
+legacy CAW state-key renaming. New training saves best/last checkpoints, both
+optimizer states when applicable, scheduler states, and the configuration.
+
+For a short test without external data or perceptual weights:
 
 ```bash
-python eval.py --config configs/default.yaml --checkpoint outputs/checkpoints/ifin_last.pth
-```
-
-Run inference:
-
-```bash
-python infer.py --config configs/default.yaml --checkpoint outputs/checkpoints/ifin_last.pth
-```
-
-Run tests:
-
-```bash
+python train.py --config configs/smoke.yaml
+python eval.py --config configs/smoke.yaml --checkpoint outputs/checkpoints/smoke/ifin_last.pth
 python -m pytest -q tests
 ```
 
+### Comparison Models
+
+The shared train/eval/infer entry points also support `wiener`, `admm`,
+`unet`, `nafnet`, `leadmmu`, `deeplir`, `multiwienernet`, `updn`,
+`mwdns`, `lensnet`, and `modl`. `--model` selects the dataset-specific
+constructor and PSF recipe automatically.
+
+```bash
+python eval.py --config configs/diffusercam.yaml --model wiener --data-root /path/to/DiffuserCam
+python eval.py --config configs/widercam.yaml --model mwdns --data-root /path/to/WiderCam --checkpoint /path/to/mwdns_checkpoint.pth
+python train.py --config configs/widercam.yaml --model nafnet --data-root /path/to/WiderCam
+```
+
+DeepLIR and the research MoDL implementation are external-source integrations,
+not redistributed copies. Their adapters retain the research operations and
+checkpoint structure. Setup, source mappings, model-specific settings, and
+known notebook inconsistencies are documented in [Baseline Implementations](docs/baselines.md)
+and [Research Code Provenance](docs/code_provenance.md).
+See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for upstream licenses.
+
+The MultiWienerNet YAML initially follows the available historical k=4
+experiment, not the paper's k=9 checkpoint. The DiffuserCam notebook's named
+best IFIN checkpoint was not found locally. These settings and weights must
+not be substituted silently when reproducing the reported paper tables.
+
 ## Dataset Layout
 
-For DiffuserCam/Waller-style data, set `data.waller_path` and `data.psf_path` in `configs/default.yaml`.
-
-Expected layout:
-
 ```text
-dataset_root/
+DiffuserCam/
   dataset_train.csv
   dataset_test.csv
-  diffuser_images/
-  ground_truth_lensed/
+  diffuser_images/*.npy
+  ground_truth_lensed/*.npy
   psf.tiff
+
+WiderCam/
+  dataset_train.csv
+  dataset_test.csv
+  images/*_rgb8.png
+  labels/*.jpg
+  sv_psfs/point_4_4_rgb8.png
+
+MultiWienerNet/
+  2D/Ground_truth_downsampled/*.png
+  2D/Simulated_Miniscope_2D_Training_data/*.png
+  PSF/multiWienerPSFStack_40z_aligned.mat
 ```
+
+WiderCam target alignment and the MultiWienerNet crop/downsampling are applied
+by the dataset loaders. Datasets and trained checkpoints remain external.
 
 ## WiderCam Dataset
 

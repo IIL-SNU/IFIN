@@ -1,0 +1,62 @@
+seed: 4716
+deterministic: true
+device: auto
+
+model:
+  name: ifin
+  in_channels: 3
+  out_channels: 3
+  height: 270
+  width: 480
+  dim: 32
+  depth: 3
+  k: 16
+  exchange: 0.2
+  repeat_psf: true
+  random_init: false
+  seed_blocks: rb
+  regularizer_activation: relu
+  residual: false
+  bottleneck: false
+  upsample: bicubic
+
+data:
+  dataset: diffusercam
+  root: ${DATA_ROOT:-data/diffusercam}
+  psf_path: psf.tiff
+  psf_bg_patch: 15
+  psf_normalization: max
+  psf_crop: signal
+
+train:
+  epochs: 100
+  batch_size: 4
+  num_workers: 4
+  num_samples: null
+  pin_memory: false
+
+eval:
+  batch_size: 4
+  num_workers: 4
+  num_samples: null
+  pin_memory: false
+  normalize: max
+  clip: true
+
+optimizer:
+  lr: 0.0001
+  psf_lr: 0.001
+
+loss:
+  image: 1.0
+  measurement: 0.0
+  iso: 0.1
+  psf: 0.0
+  lpips: 0.05
+
+provenance:
+  lpips_normalize: true
+
+checkpoint:
+  save: true
+  output_dir: outputs/checkpoints/diffusercam

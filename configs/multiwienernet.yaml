@@ -1,0 +1,75 @@
+seed: 4716
+deterministic: true
+device: auto
+
+model:
+  name: ifin
+  in_channels: 1
+  out_channels: 1
+  height: 224
+  width: 320
+  dim: 32
+  depth: 3
+  k: 4
+  exchange: 0.2
+  repeat_psf: true
+  random_init: false
+  seed_blocks: conv
+  regularizer_activation: sigmoid
+  residual: true
+  bottleneck: true
+  upsample: bilinear
+
+data:
+  dataset: multiwienernet
+  root: ${DATA_ROOT:-data/multiwienernet}
+  target_dir: 2D/Ground_truth_downsampled
+  measurement_dir: 2D/Simulated_Miniscope_2D_Training_data
+  psf_path: PSF/multiWienerPSFStack_40z_aligned.mat
+  psf_key: multiWienerPSFStack_40z
+  psf_depth_index: 0
+  psf_center_index: 4
+  psf_normalization: max
+  split_seed: 8
+  test_fraction: 0.2
+
+train:
+  epochs: 100
+  batch_size: 4
+  num_workers: 4
+  num_samples: null
+  pin_memory: false
+
+eval:
+  batch_size: 4
+  num_workers: 4
+  num_samples: null
+  pin_memory: false
+  normalize: max
+  clip: true
+
+optimizer:
+  lr: 0.0001
+  psf_lr: 0.001
+
+loss:
+  image: 1.0
+  measurement: 0.001
+  iso: 0.1
+  psf: 0.1
+  lpips: 0.05
+
+provenance:
+  variant: archived_k4
+  paper_main_k: 9
+  checkpoint_psf_shape_candidates:
+    - [1, 4, 224, 320]
+    - [1, 1, 224, 320]
+  configured_unused_fourier_weight: 0.001
+  lpips_normalize: true
+  split_file_order: filesystem_glob_unsorted
+  split_reproducibility: requires_original_filesystem_order
+
+checkpoint:
+  save: true
+  output_dir: outputs/checkpoints/multiwienernet
