@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -15,10 +16,40 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 import runner  # noqa: E402
-from config import load_config  # noqa: E402
+from config import add_config_arguments, cli_overrides, load_config  # noqa: E402
 from losses.basic import ReconstructionLoss  # noqa: E402
 from metrics.basic import normalize_images  # noqa: E402
+from models.ifin import build_ifin_model  # noqa: E402
 from utils.checkpoint import load_checkpoint  # noqa: E402
+
+
+def test_cli_selects_ifin_k_from_paper_settings():
+    parser = argparse.ArgumentParser()
+    add_config_arguments(parser)
+    args = parser.parse_args(["--config", str(PROJECT_ROOT / "configs/diffusercam.yaml"), "--k", "9"])
+    config = load_config(args.config, cli_overrides(args, ("train", "eval")))
+    assert config["model"]["k"] == 9
+
+
+@pytest.mark.parametrize("k", [1, 4, 9, 16])
+def test_single_ifin_implementation_supports_paper_field_sizes(k):
+    config = load_config(str(PROJECT_ROOT / "configs/smoke.yaml"), {"model": {"dim": 4, "k": k}})
+    if k == 1:
+        config["model"].pop("k")
+    model = build_ifin_model(config, torch.rand(1, 1, 16, 16)).eval()
+    assert model.psf.shape[1] == k
+    with torch.no_grad():
+        outputs = model(torch.rand(1, 3, 32, 32))
+    for output in outputs:
+        assert output.shape == (1, 3, 32, 32)
+        assert torch.isfinite(output).all()
+
+
+def test_checkpoint_field_size_must_match_selected_k():
+    config = load_config(str(PROJECT_ROOT / "configs/smoke.yaml"))
+    checkpoint = {"model_state_dict": {"psf": torch.rand(1, 4, 16, 16)}}
+    with pytest.raises(ValueError, match="pass --k 4"):
+        build_ifin_model(config, torch.rand(1, 1, 16, 16), checkpoint)
 
 
 def test_yaml_measurement_and_iso_loss_weights_are_applied():

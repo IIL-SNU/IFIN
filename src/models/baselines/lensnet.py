@@ -1,4 +1,6 @@
-# Original source comments are preserved from the audited research file named in docs/baselines.md.
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2024 Nick Chen
+# Source: baijiesong/Lensnet@a6977ad9f1a84971b9960acb97e3f370f96d302e/models/LensNet.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -169,35 +171,35 @@ def WieNer(blur, psf, delta):
 
 
 class LensNet(nn.Module):
-    def __init__(self, in_chan=3, out_chan=3, ngf=64, psf=None):
+    def __init__(self, in_chan=3, out_chan=3, ngf=64, psf=None, w_init=0.001, clamp_output=True):
         super(LensNet, self).__init__()
+        if ngf != 64:
+            raise ValueError("The official LensNet architecture requires ngf=64")
         self.in_chan = in_chan
         self.out_chan = out_chan
-        self.psf = nn.Parameter(torch.rand(1, 3, 270, 480))
-        # self.psf = nn.Parameter(torch.rand(1, 1, 224, 320))
-        # self.psf = nn.init.xavier_uniform_(self.psf)
-        # self.psf = nn.Parameter(psf)
+        self.psf = nn.Parameter(torch.rand(1, 3, 320, 320) if psf is None else psf.detach().clone())
+        self.clamp_output = clamp_output
 
         # self.inc = DoubleConv(in_chan, 64)
         self.inc = DoubleConv(in_chan, ngf)
-        self.down1 = Down(ngf*1, ngf*2)
-        self.down2 = Down(ngf*2, ngf*4)
-        self.down3 = Down(ngf*4, ngf*8)
-        self.down4 = Down(ngf*8, ngf*8)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 256)
+        self.down3 = Down(256, 512)
+        self.down4 = Down(512, 512)
 
-        self.up1 = Up(ngf*8*2, ngf*4)
-        self.up2 = Up(ngf*4*2, ngf*2)
-        self.up3 = Up(ngf*2*2, ngf)
-        self.up4 = Up(ngf*2, ngf)
+        self.up1 = Up(1024, 256)
+        self.up2 = Up(512, 128)
+        self.up3 = Up(256, 64)
+        self.up4 = Up(128, 64)
 
         self.delta = nn.Parameter(torch.tensor(np.ones(5) * 0.01, dtype=torch.float32))
-        self.w = nn.Parameter(torch.tensor([0.01], dtype=torch.float32))
+        self.w = nn.Parameter(torch.tensor([w_init], dtype=torch.float32))
 
         # self.inc0 = DoubleConv(in_chan, 64)
         self.inc0 = DoubleConv(in_chan, ngf)
-        self.down11 = Down(ngf, ngf*2)
-        self.down22 = Down(ngf*2, ngf*4)
-        self.down33 = Down(ngf*4, ngf*8)
+        self.down11 = Down(64, 128)
+        self.down22 = Down(128, 256)
+        self.down33 = Down(256, 512)
 
         # self.refinement = RefineBlock(64, out_chan)
         self.refinement = nn.Conv2d(ngf, out_chan, kernel_size=(1, 1))
@@ -225,4 +227,4 @@ class LensNet(nn.Module):
         x = self.up4(x, x1)
         x = self.refinement(x)
 
-        return x#.clamp(0, 1)
+        return x.clamp(0, 1) if self.clamp_output else x

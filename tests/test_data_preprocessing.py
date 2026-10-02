@@ -69,7 +69,8 @@ def test_benchmark_config_runtime_schema() -> None:
         assert config["eval"]["normalize"] == ("clip_max" if name == "widercam" else "none")
         baseline = load_config(str(PROJECT_ROOT / "configs" / f"{name}.yaml"), {"model": {"name": "wiener"}})
         assert baseline["eval"]["normalize"] == ("max" if name == "diffusercam" else "clip_max")
-    assert load_config(str(PROJECT_ROOT / "configs" / "diffusercam.yaml"))["model"]["k"] == 16
+    for name in ("widercam", "diffusercam", "multiwienernet"):
+        assert load_config(str(PROJECT_ROOT / "configs" / f"{name}.yaml"))["model"]["k"] == 1
     assert load_config(str(PROJECT_ROOT / "configs" / "smoke.yaml"))["model"]["k"] == 1
     default_config = load_config(str(PROJECT_ROOT / "configs" / "default.yaml"))
     assert "random_init_psf" not in default_config["model"]
@@ -217,7 +218,7 @@ def test_multiwienernet_crop_split_and_psf(tmp_path: Path) -> None:
     scipy.io.savemat(psf_dir / "multiWienerPSFStack_40z_aligned.mat", {"multiWienerPSFStack_40z": stack})
 
     config = load_config(str(PROJECT_ROOT / "configs" / "multiwienernet.yaml"))
-    assert config["model"]["k"] == 4
+    assert config["model"]["k"] == 1
     assert config["provenance"]["paper_main_k"] == 9
     assert config["model"]["seed_blocks"] == "conv"
     assert config["model"]["regularizer_activation"] == "sigmoid"

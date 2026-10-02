@@ -58,7 +58,7 @@ The WiderCam notebook's experimental `IFIN2` branch references a missing
 module. The verified `FIX` branch is packaged instead.
 
 Paper support sizes and checkpoint support sizes are not always identical.
-The release records the actual notebook settings; evaluation initializes IFIN
+Evaluation initializes IFIN
 from the learned PSF stored in the checkpoint to preserve its exact support.
 The available MultiWienerNet k=1/k=4 experiments are not the paper's k=9 result.
 
@@ -77,8 +77,13 @@ mapping exactly. Its checkpoint-confirmed center PSF crop is
 `(center_y=133, center_x=236, height=130, width=133)`; the commented 135 x 135
 alternative is not used by the released configuration.
 
-DiffuserCam uses the notebook-selected FIX configuration with `k=16`. The
-referenced best checkpoint is unavailable, so real-data inference without a
+All released IFIN YAML files default to `k=1`. Use `model.k` or `--k` to select
+1, 4, 9, or 16 kernels; the paper uses k=9 for WiderCam and MultiWienerNet.
+The MultiWienerNet YAML preserves the historical CAW6 architecture, independently
+of the selected k. Checkpoint evaluation requires the original matching k.
+
+The DiffuserCam research notebook selects the FIX configuration with `k=16`.
+The referenced best checkpoint is unavailable, so real-data inference without a
 checkpoint is a pipeline smoke check only and is not a benchmark result.
 
 ## Evaluation Convention

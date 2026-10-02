@@ -10,7 +10,7 @@ model:
   width: 480
   dim: 32
   depth: 3
-  k: 9
+  k: 1
   exchange: 0.2
   repeat_psf: true
   random_init: false

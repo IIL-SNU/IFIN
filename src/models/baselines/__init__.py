@@ -95,10 +95,18 @@ def _build_unet(options, psf, device, config):
 
 def _build_lensnet(options, psf, device, config):
     in_channels, out_channels = _channels(options)
-    model = LensNet(in_channels, out_channels, ngf=int(options.get("ngf", 64)))
     if bool(options.get("use_input_psf", False)):
-        model.psf = nn.Parameter(_prepare_psf(psf, options))
-    return model
+        initial_psf = _prepare_psf(psf, options)
+    else:
+        model_config = config.get("model", {})
+        height = int(model_config.get("height", psf.shape[-2]))
+        width = int(model_config.get("width", psf.shape[-1]))
+        initial_psf = torch.rand(1, in_channels, height, width, device=device)
+    return LensNet(
+        in_channels, out_channels, ngf=int(options.get("ngf", 64)), psf=initial_psf,
+        w_init=float(options.get("w_init", 0.001)),
+        clamp_output=bool(options.get("clamp_output", True)),
+    )
 
 
 def _build_nafnet(options, psf, device, config):

@@ -10,7 +10,7 @@ model:
   width: 320
   dim: 32
   depth: 3
-  k: 4
+  k: 1
   exchange: 0.2
   repeat_psf: true
   random_init: false
@@ -59,7 +59,7 @@ loss:
   lpips: 0.05
 
 provenance:
-  variant: archived_k4
+  variant: historical_caw6
   paper_main_k: 9
   checkpoint_psf_shape_candidates:
     - [1, 4, 224, 320]

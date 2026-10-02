@@ -105,6 +105,8 @@ def cli_overrides(args: Any, splits: tuple[str, ...]) -> Dict[str, Any]:
     override: Dict[str, Any] = {}
     if args.model is not None:
         override.setdefault("model", {})["name"] = args.model
+    if args.k is not None:
+        override.setdefault("model", {})["k"] = args.k
     if args.data_root is not None:
         override.setdefault("data", {})["root"] = args.data_root
     if args.psf_path is not None:
@@ -125,6 +127,7 @@ def cli_overrides(args: Any, splits: tuple[str, ...]) -> Dict[str, Any]:
 def add_config_arguments(parser: Any) -> None:
     parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH))
     parser.add_argument("--model")
+    parser.add_argument("--k", type=int, choices=(1, 4, 9, 16), help="Number of IFIN PSF kernels; YAML default is 1")
     parser.add_argument("--model-config")
     parser.add_argument("--data-root")
     parser.add_argument("--psf-path")

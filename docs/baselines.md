@@ -30,12 +30,21 @@ The profiles record checkpoint-compatible constructor choices explicitly. WiderC
 
 ## Source map
 
+LensNet now uses the pinned official source listed below. Its constructor keeps
+the upstream defaults (320 x 320 RGB PSF, `w_init=0.001`, clamped output); the
+factory adapts PSF dimensions/channels to the selected dataset. Dataset profiles
+explicitly set `w_init: 0.01` and `clamp_output: false` to preserve the evaluated
+research variant. MultiWienerNet initializes it from the selected center PSF.
+Set `model.options.w_init: 0.001` and `model.options.clamp_output: true` for
+official initialization/output behavior at the dataset's dimensions. The
+upstream architecture uses `ngf=64`; unsupported widths are rejected.
+
 | Registry name | Evaluated source and class | Training source |
 | --- | --- | --- |
 | `wiener` | `models/WieNerDeconv.py::WieNerDeconv` | Analytic; no checkpoint |
 | `admm` | DiffuserCam/WiderCam: `models/ADMM.py::ADMMs`; MultiWiener: `models/MoDL_SV.py::ADMMs` after wildcard overwrite | Analytic notebook parameters; no checkpoint |
 | `unet` | DiffuserCam: `models/UNet.py::UNet`; WiderCam/MultiWiener: `models/MoDL_SV.py::UNet` after wildcard overwrite | `CAW/SVLensless/skeleton_U.py`, `CAW/3D/skeleton_U.py`; DiffuserCam producer is not uniquely identified by current filenames |
-| `lensnet` | `models/Lensnet.py::LensNet` | `CAW/SVLensless/skeleton_LensNet.py`, `CAW/3D/skeleton_LensNet.py` |
+| `lensnet` | [Official LensNet](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/LensNet.py), with dataset options | `CAW/SVLensless/skeleton_LensNet.py`, `CAW/3D/skeleton_LensNet.py` |
 | `nafnet` | `models/NAF.py::NAFNet` | `train/lensless/skeleton.py` (`Name='NAF'`) |
 | `updn` | RGB: `models/UPDN.py::ImageOptimizerMixColors`; MultiWiener: `ImageOptimizer` | `train/lensless/skeleton_UPDN.py`, `CAW/SVLensless/skeleton_UPDN.py`, `CAW/3D/skeleton_UPDN.py` |
 | `mwdns` | Effective notebook symbol: `models/MWDN.py::MWDNet_CPSF` | `train/lensless/skeleton_MWDN.py`, `CAW/SVLensless/skeleton_MWDN.py`, `CAW/3D/skeleton_MWDN.py` |
@@ -111,9 +120,34 @@ All recorded learned checkpoint paths existed during the audit. All 21 selected 
 - WiderCam Le-ADMM-U resolves `EnsembleModel` from `DeepLIR.py` and passes `(unet, admm)` to a constructor declared `(admm_model, denoise_model)`, unlike the inline DiffuserCam/MultiWiener ensemble. The factory uses the checkpoint-facing inline `unet`/`admms` attributes and preserves its forward order.
 - DiffuserCam/WiderCam evaluation resolves `MWDNet_CPSF` from `MWDN.py`, while their current training scripts import `MWDNs.py`; the selected checkpoints strictly load into the evaluated `MWDN.py` class, but provenance still points at inconsistent source filenames.
 - MultiWiener MoDL reads `TPARAMS['PSF']` before assigning it in that branch. The factory passes the selected center PSF directly without changing `MoDLNet3D` math.
-- MultiWiener LensNet requests one channel, but current `LensNet` source hardcodes a trainable `(1,3,270,480)` PSF. Its checkpoint stores `(1,1,224,320)`, so that profile explicitly initializes the same parameter from the selected full-size input PSF before strict loading.
+- MultiWiener LensNet requests one channel, but the audited research `LensNet` source hardcodes a trainable `(1,3,270,480)` PSF. Its checkpoint stores `(1,1,224,320)`, so the profile explicitly initializes the same parameter from the selected full-size input PSF before strict loading.
 - Several configured checkpoint paths are stale but harmless because Wiener/ADMM skip loading; DiffuserCam UNet also points to the same checkpoint basename as the WiderCam notebook.
 
-## Runtime dependencies
+## Official LensNet Repository Comparison
+
+Audited [model directory](https://github.com/baijiesong/Lensnet/tree/a6977ad9f1a84971b9960acb97e3f370f96d302e/models)
+at commit `a6977ad9f1a84971b9960acb97e3f370f96d302e`. A shared model name does
+not mean that two implementations reproduce the same experiment.
+
+| Released model | Official repository difference | Release decision |
+| --- | --- | --- |
+| LensNet | Same core at width 64; official PSF 320 x 320, Wiener scale 0.001, and final clipping differ from research defaults | Use official core with explicit dataset options |
+| MWDNs | [Official MWDNs](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/MWDNs.py) has a trainable 3 x 256 x 256 PSF, fixed RGB PSF encoder, scalar scale 0.001, and clipping; research accepts dataset PSFs and grayscale, with different regularizer shape/initialization | Keep research implementation |
+| UPDN | [Official UPDN](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/UPDN.py) loads a fixed RGB PSF asset internally; research has injected PSFs and separate grayscale/RGB color-mixing variants | Keep research implementation |
+| DeepLIR | [Official DeepLIR](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/DeepLIR.py) uses ADMM plus SwinIR; evaluated source uses ADMM plus a diffusion-style U-Net | Keep evaluated external implementation |
+| Le-ADMM-U | [Official Le-ADMM-U](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/Le_ADMM_U.py) uses embedded ADMM and a diffusion/ConvNeXt U-Net; research uses ADMMs plus UNet270480 | Keep research implementation |
+| Wiener | [Official Wiener file](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/Wiener.py) is an offline scikit-image unsupervised-Wiener script, not the evaluated Torch FFT module | Keep research implementation |
+| ADMM | Only embedded variants, with different parameters, PSF loading, and crop/state conventions | Keep research implementation |
+| UNet | LenslessGAN has a similar denoiser topology, but different interpolation, output handling, and state names | Keep research implementation |
+| NAFNet | Not provided; WoNAF is a LensNet ablation without NAF blocks, not NAFNet | Keep research implementation |
+| MultiWienerNet, MoDL | Not provided | Keep existing integrations |
+
+Additional upstream models are FlatNet, MMCN, UDN, ULAMPNet, MDGAN, TikNet,
+ThreeDown, LenslessGAN, and the WoNAF/WoWNFB ablations. PSF.py is also exported.
+These are not automatically added to the released benchmark set because the
+selected IFIN evaluation notebooks did not use them. No complete upstream
+baseline was a drop-in numerical replacement for its research counterpart.
+
+## Runtime Dependencies
 
 The tracked package uses existing project dependencies: Python, PyTorch, torchvision, NumPy, and einops. No NAS paths, datasets, checkpoints, W&B, pyiqa, matplotlib, tqdm, torchmetrics, or scipy are imported eagerly by the baseline package. DeepLIR and MoDL source files and all checkpoint/dataset files remain local external inputs.

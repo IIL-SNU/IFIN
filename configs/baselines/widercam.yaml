@@ -17,7 +17,7 @@ baselines:
     options: {psf_norm: l2, psf_scale: 1.0, implementation: shared, in_channels: 3, out_channels: 3}
   lensnet:
     name: lensnet
-    options: {psf_norm: none, psf_scale: 1.0, in_channels: 3, out_channels: 3, ngf: 64}
+    options: {psf_norm: none, psf_scale: 1.0, in_channels: 3, out_channels: 3, ngf: 64, w_init: 0.01, clamp_output: false}
   nafnet:
     name: nafnet
     options: {psf_norm: none, psf_scale: 1.0, in_channels: 3, out_channels: 3}

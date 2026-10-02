@@ -128,7 +128,7 @@ class ISO(nn.Module):
         width (int):  이미지 너비(W)
         k (int): 추가로 사용할 PSF(또는 ROI) 개수
     """
-    def __init__(self, channels, height, width, height_p, width_p, k=16):
+    def __init__(self, channels, height, width, height_p, width_p, k=1):
         super(ISO, self).__init__()
         self.height_freq = height + height_p
         self.width_freq = (width + width_p)// 2 + 1
@@ -202,7 +202,7 @@ class FSO(nn.Module):
         in_channels (int): Number of input channels.
         init_scale (float): Initial scaling factor for the output.
     """
-    def __init__(self, in_channels, height, width, height_p, width_p, init_scale=1.0, k=16):
+    def __init__(self, in_channels, height, width, height_p, width_p, init_scale=1.0, k=1):
         super(FSO, self).__init__()
         self.alpha = nn.Parameter(torch.ones(1, 1, 1, 1) * 1)
         num_groups = get_num_groups(in_channels)
@@ -267,7 +267,7 @@ class FSO(nn.Module):
 
 class IFIB(nn.Module):
 
-    def __init__(self, in_channels, out_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=16):
+    def __init__(self, in_channels, out_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=1):
         super(IFIB, self).__init__()
         self.iso = ISO(in_channels, height, width, height_p, width_p, k=k)
         self.fso = FSO(in_channels, height, width, height_p, width_p, k=k)
@@ -318,7 +318,7 @@ class IFIB(nn.Module):
 class UpsampleIFIB(nn.Module):
     """Upscaling then DoubleConvG with IFIB."""
 
-    def __init__(self, in_channels, out_channels, mid_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=16):
+    def __init__(self, in_channels, out_channels, mid_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=1):
         super(UpsampleIFIB, self).__init__()
         self.upw = nn.Upsample(scale_factor=2, mode='bicubic', align_corners=True)
         self.upc = nn.Upsample(scale_factor=2, mode='bicubic', align_corners=True)
@@ -345,7 +345,7 @@ class UpsampleIFIB(nn.Module):
 class DownsampleIFIB(nn.Module):
     """Downscaling with average pooling followed by IFIB."""
 
-    def __init__(self, in_channels, out_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=16):
+    def __init__(self, in_channels, out_channels, height, width, height_p, width_p, block_cls=RB, exchange=0.2, k=1):
         super(DownsampleIFIB, self).__init__()
         self.pool = nn.AvgPool2d(2)
         self.ifib = IFIB(in_channels, out_channels, height, width, height_p, width_p, block_cls=block_cls, exchange=exchange, k=k)
@@ -362,12 +362,14 @@ class DownsampleIFIB(nn.Module):
 
 
 class IFINNet(nn.Module):
-    def __init__(self, in_channels, out_channels, psf, height=270, width=480, dim=32, depth=3, block_cls=RB, exchange=0.2, k=16, repeat=True, random=False,
+    def __init__(self, in_channels, out_channels, psf, height=270, width=480, dim=32, depth=3, block_cls=RB, exchange=0.2, k=1, repeat=True, random=False,
                  seed_blocks="rb", bottleneck=False, residual=False,
                  upsample="bicubic", regularizer_activation="relu"):
         super().__init__()
         if depth < 2:
             raise ValueError("IFIN requires depth >= 2")
+        if k < 1:
+            raise ValueError("IFIN requires k >= 1")
         if seed_blocks not in {"rb", "conv"}:
             raise ValueError("seed_blocks must be rb or conv")
         if upsample not in {"bicubic", "bilinear"}:
@@ -501,6 +503,11 @@ def build_ifin_model(config, psf, checkpoint=None):
         state = extract_state_dict(checkpoint)
         learned_psf = state.get("psf")
         if learned_psf is not None:
+            if learned_psf.shape[1] != options.get("k", 1):
+                raise ValueError(
+                    f"Checkpoint uses k={learned_psf.shape[1]}, but model.k={options.get('k', 1)}; "
+                    f"set model.k or pass --k {learned_psf.shape[1]}"
+                )
             psf = learned_psf.detach().clone()
             repeat = False
             random_init = False

@@ -12,6 +12,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from models.baselines import REGISTRY, build_baseline
+from config import load_config
 
 
 torch.set_num_threads(1)
@@ -138,6 +139,16 @@ def test_lensnet_can_use_checkpoint_psf_shape() -> None:
     }
     model = build_baseline(config, torch.rand(1, 9, 224, 320), "cpu")
     assert model.psf.shape == (1, 1, 224, 320)
+
+
+def test_official_lensnet_dataset_profiles_preserve_research_options() -> None:
+    for name, channels, height, width in [("widercam", 3, 270, 480), ("diffusercam", 3, 270, 480), ("multiwienernet", 1, 224, 320)]:
+        config = load_config(str(PROJECT_ROOT / "configs" / f"{name}.yaml"), {"model": {"name": "lensnet"}})
+        count = 9 if name == "multiwienernet" else channels
+        model = build_baseline(config, torch.rand(1, count, height, width), "cpu")
+        assert model.psf.shape == (1, channels, height, width)
+        assert model.w.item() == pytest.approx(0.01)
+        assert model.clamp_output is False
 
 
 def test_safe_baselines_work_without_external_sources(monkeypatch, tmp_path: Path) -> None:

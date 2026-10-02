@@ -148,6 +148,10 @@ pip install -r requirements.txt
 IFIN has one implementation, `src/models/ifin.py`, with paper names
 `IFINNet`, `IFIB`, `FSO`, `ISO`, and `RB`. Dataset and historical
 architecture differences are configured in YAML, not separate model files.
+All IFIN configurations default to `k=1`. Select the number of PSF-field
+kernels with `model.k` in YAML or `--k 1`, `--k 4`, `--k 9`, or `--k 16`.
+The paper uses k=1/4/9/16 for the DiffuserCam ablation and k=9 for WiderCam
+and MultiWienerNet. This IFIN setting does not change baseline architectures.
 
 | Dataset | Configuration | Evaluation notebook |
 | --- | --- | --- |
@@ -159,9 +163,9 @@ Set `DATA_ROOT` to the selected dataset's root or pass `--data-root`.
 PSF paths are relative to that root unless an absolute `--psf-path` is supplied.
 
 ```bash
-python train.py --config configs/widercam.yaml --data-root /path/to/WiderCam
-python eval.py --config configs/widercam.yaml --data-root /path/to/WiderCam --checkpoint /path/to/ifin_checkpoint.pth
-python infer.py --config configs/widercam.yaml --data-root /path/to/WiderCam --checkpoint /path/to/ifin_checkpoint.pth --output-dir outputs/reconstruction
+python train.py --config configs/widercam.yaml --data-root /path/to/WiderCam --k 9
+python eval.py --config configs/widercam.yaml --data-root /path/to/WiderCam --k 9 --checkpoint /path/to/ifin_checkpoint.pth
+python infer.py --config configs/widercam.yaml --data-root /path/to/WiderCam --k 9 --checkpoint /path/to/ifin_checkpoint.pth --output-dir outputs/reconstruction
 ```
 
 Inference accepts `--input measurement.png` or `--input measurement.npy`;
@@ -169,6 +173,8 @@ without it, the first test sample is used. NumPy DiffuserCam measurements use
 the dataset's BGR-to-RGB conversion. Checkpoints are loaded strictly, including
 legacy CAW state-key renaming. New training saves best/last checkpoints, both
 optimizer states when applicable, scheduler states, and the configuration.
+When supplying a checkpoint, select its original k with `--k`; learned PSF
+tensors are never resized to fit a different field size.
 
 For a short test without external data or perceptual weights:
 
@@ -198,10 +204,8 @@ known notebook inconsistencies are documented in [Baseline Implementations](docs
 and [Research Code Provenance](docs/code_provenance.md).
 See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for upstream licenses.
 
-The MultiWienerNet YAML initially follows the available historical k=4
-experiment, not the paper's k=9 checkpoint. The DiffuserCam notebook's named
-best IFIN checkpoint was not found locally. These settings and weights must
-not be substituted silently when reproducing the reported paper tables.
+Checkpoints are optional external inputs and are not included in this release.
+Without trained weights, evaluation is a pipeline check, not a paper result.
 
 ## Dataset Layout
 
