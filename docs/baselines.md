@@ -2,7 +2,7 @@
 
 `models.baselines.build_baseline(config, psf, device)` builds the evaluated comparison models without modifying `sys.path`. `psf` must already be dataset-preprocessed, full/uncropped, and have shape `(1, N, Hp, Wp)`. The factory selects PSF index 4 when `N >= 9` for single-PSF methods. `multiwienernet` passes the first nine PSFs when a stack is available and repeats a single RGB PSF nine times exactly as the DiffuserCam/WiderCam notebooks do.
 
-DeepLIR and MoDL are not distributed in the tracked package because the audited local copies do not establish redistribution permission. To use them locally, place sanitized `deeplir.py` and `modl.py` files in the gitignored `external_baselines/` directory:
+DeepLIR and MoDL are not distributed in the tracked package because the audited local copies do not establish redistribution permission. WiderCam/MultiWiener ADMM and Le-ADMM-U also select the ADMM implementation from that external MoDL source. To use these profiles locally, place sanitized `deeplir.py` and `modl.py` files in the gitignored `external_baselines/` directory:
 
 ```bash
 python scripts/prepare_external_baselines.py --source-dir /path/to/user-supplied/research/models
@@ -10,7 +10,7 @@ python scripts/prepare_external_baselines.py --source-dir /path/to/user-supplied
 
 The source directory must contain `DeepLIR.py` and `MoDL_SV.py`. The script performs only mechanical import sanitization and does not download either source. Override the local directory with `IFIN_EXTERNAL_BASELINES` or `model.options.external_source_dir`. All other registry entries import and construct without these files.
 
-Each factory config has this form:
+Other profiles, including DiffuserCam ADMM and Le-ADMM-U, do not need those external files. Each factory config has this form:
 
 ```yaml
 model:
@@ -42,7 +42,7 @@ upstream architecture uses `ngf=64`; unsupported widths are rejected.
 | Registry name | Evaluated source and class | Training source |
 | --- | --- | --- |
 | `wiener` | `models/WieNerDeconv.py::WieNerDeconv` | Analytic; no checkpoint |
-| `admm` | DiffuserCam/WiderCam: `models/ADMM.py::ADMMs`; MultiWiener: `models/MoDL_SV.py::ADMMs` after wildcard overwrite | Analytic notebook parameters; no checkpoint |
+| `admm` | DiffuserCam: `models/ADMM.py::ADMMs`; WiderCam/MultiWiener: `models/MoDL_SV.py::ADMMs` after wildcard overwrite | Analytic notebook parameters; no checkpoint |
 | `unet` | DiffuserCam: `models/UNet.py::UNet`; WiderCam/MultiWiener: `models/MoDL_SV.py::UNet` after wildcard overwrite | `CAW/SVLensless/skeleton_U.py`, `CAW/3D/skeleton_U.py`; DiffuserCam producer is not uniquely identified by current filenames |
 | `lensnet` | [Official LensNet](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/LensNet.py), with dataset options | `CAW/SVLensless/skeleton_LensNet.py`, `CAW/3D/skeleton_LensNet.py` |
 | `nafnet` | `models/NAF.py::NAFNet` | `train/lensless/skeleton.py` (`Name='NAF'`) |
@@ -113,6 +113,10 @@ FIX `k=4` and `k=1` are recorded own-model branches. Wiener and UPDN source cell
 
 Learned branches load `torch.load(path, map_location='cpu')['model_state_dict']` with `strict=True`. Training scripts save dictionaries containing `epoch`, `model_state_dict`, and `optimizer_state_dict`; DiffuserCam/WiderCam MWDNs/IFIN scripts may also include `optimizer_psf_state_dict`. Analytic Wiener and ADMM branches ignore their configured `PTH_PATH` values.
 
+Research checkpoints without the release's `config` metadata store a zero-based
+completed epoch. Resuming adds one to that value; release checkpoints already
+store the next epoch index. State keys and optimizer layouts still load strictly.
+
 All recorded learned checkpoint paths existed during the audit. All 21 selected learned dataset/model combinations were also loaded into their profile constructors with `strict=True`. The following source/checkpoint inconsistencies remain:
 
 - Every audited notebook's first code cell is syntactically invalid because each `sys.path.append(` line lacks `)`. Execution counts therefore describe an older kernel state, not a clean rerun.
@@ -122,6 +126,38 @@ All recorded learned checkpoint paths existed during the audit. All 21 selected 
 - MultiWiener MoDL reads `TPARAMS['PSF']` before assigning it in that branch. The factory passes the selected center PSF directly without changing `MoDLNet3D` math.
 - MultiWiener LensNet requests one channel, but the audited research `LensNet` source hardcodes a trainable `(1,3,270,480)` PSF. Its checkpoint stores `(1,1,224,320)`, so the profile explicitly initializes the same parameter from the selected full-size input PSF before strict loading.
 - Several configured checkpoint paths are stale but harmless because Wiener/ADMM skip loading; DiffuserCam UNet also points to the same checkpoint basename as the WiderCam notebook.
+
+## Baseline Review Corrections
+
+- DeepLIR returns `(admm_output, final_output)`, unlike MultiWienerNet's
+  `(final_output, wiener_output)`. The shared runner selects DeepLIR's second
+  tensor for training, evaluation, and inference so its denoiser receives gradients.
+- The historical `util.norm(..., "linalg")` dispatches to min-max, despite its
+  name. The localized helper retains that behavior for DiffuserCam ADMM and
+  Le-ADMM-U, including unbatched PSFs. It is not replaced by L2 normalization.
+- DiffuserCam baseline profiles read raw byte-valued PSFs without background
+  subtraction (`data.psf_divisor: 1`, `data.psf_background: 0`). The factory then
+  applies each notebook branch's scaling once. In particular, uppercase `L2`
+  left UPDN's raw PSF unchanged in the source notebook. IFIN preprocessing is
+  unchanged and still uses normalized intensities and its configured crop.
+- MultiWiener DeepLIR uses the L2-normalized center PSF. DiffuserCam Le-ADMM-U
+  uses max-normalized output before clipping, matching `test_general`.
+- WiderCam/MultiWiener ADMM and Le-ADMM-U explicitly select external
+  `MoDL_SV.ADMMs`, which does not perform the `ADMM.py` helper normalization.
+
+The preserved RGB UPDN denoiser uses fixed transpose-convolution output padding.
+It supports the evaluated 270 x 480 geometry but not arbitrary dimensions such
+as 64 x 64. Small RGB smoke inputs must use a compatible size, such as 62 x 64;
+the grayscale profile uses its separate denoiser at 224 x 320. No decoder resizing
+is introduced to make an unsupported geometry pass.
+
+Checkpoint-compatible shared U-Nets remain selected when the notebook's final
+wildcard symbol resolves a different architecture that rejects the selected
+checkpoint. Le-ADMM-U remains ADMM followed by U-Net, matching its checkpoint
+attributes and explicit DiffuserCam/MultiWiener ensemble. These are documented
+reconstruction choices, not proof of a clean rerun of the broken notebooks or
+full reproduction of the paper's tables. Additional compatible profiles such as
+MultiWiener NAFNet are not evidence that the corresponding notebook cell ran.
 
 ## Official LensNet Repository Comparison
 

@@ -198,7 +198,8 @@ python train.py --config configs/widercam.yaml --model nafnet --data-root /path/
 ```
 
 DeepLIR and the research MoDL implementation are external-source integrations,
-not redistributed copies. Their adapters retain the research operations and
+not redistributed copies. WiderCam/MultiWiener ADMM and Le-ADMM-U also use the
+ADMM class from that external MoDL source. Their adapters retain the research operations and
 checkpoint structure. Setup, source mappings, model-specific settings, and
 known notebook inconsistencies are documented in [Baseline Implementations](docs/baselines.md)
 and [Research Code Provenance](docs/code_provenance.md).

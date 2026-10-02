@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import torch
+import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -13,9 +14,22 @@ if str(SRC_ROOT) not in sys.path:
 
 from models.baselines import REGISTRY, build_baseline
 from config import load_config
+from models.baselines._utils import norm
 
 
 torch.set_num_threads(1)
+
+
+@pytest.mark.parametrize("shape", [(2, 3, 2, 2), (3, 2, 4), (4, 6)])
+def test_admm_historical_linalg_option_uses_minmax_normalization(shape) -> None:
+    values = torch.arange(24, dtype=torch.float32).reshape(shape) + 3
+    dims = tuple(range(1, values.ndim)) if values.ndim > 3 else tuple(range(values.ndim))
+    minimum = values.amin(dim=dims, keepdim=True)
+    maximum = values.amax(dim=dims, keepdim=True)
+    assert torch.equal(norm(values, "linalg"), (values - minimum) / (maximum - minimum))
+    array = values.numpy()
+    expected = ((array - array.min()) / (array.max() - array.min()) * 255).astype(np.uint8)
+    np.testing.assert_array_equal(norm(array, "linalg"), expected)
 
 
 OPTIONS = {
@@ -128,6 +142,17 @@ def test_deeplir_uses_requested_phase_batch_size() -> None:
     }
     model = build_baseline(config, torch.rand(1, 1, 32, 32), "cpu")
     assert model.admm_model.batch_size == 3
+
+
+@pytest.mark.parametrize("dataset", ["widercam", "multiwienernet"])
+def test_admm_uses_notebook_selected_implementation(dataset) -> None:
+    require_external("modl")
+    from models.baselines._external import load_external
+
+    config = load_config(str(PROJECT_ROOT / "configs" / f"{dataset}.yaml"), {"model": {"name": "admm"}})
+    psf = torch.rand(1, 9, 32, 32)
+    model = build_baseline(config, psf, "cpu")
+    assert type(model) is load_external("modl", config["model"]["options"]).ADMMs
 
 
 def test_lensnet_can_use_checkpoint_psf_shape() -> None:

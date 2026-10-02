@@ -38,7 +38,8 @@ def _load_image_psf(path: Path, data_config: Dict[str, Any], height: int, width:
         raise FileNotFoundError(f"Cannot read PSF image: {path}")
     interpolation = cv2.INTER_AREA if data_config.get("psf_interpolation") == "area" else cv2.INTER_LINEAR
     image = cv2.resize(image, (width, height), interpolation=interpolation)
-    psf = torch.from_numpy(np.asarray(image)).to(dtype=torch.float32).unsqueeze(0).unsqueeze(0) / 255.0
+    psf = torch.from_numpy(np.asarray(image)).to(dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    psf = psf / float(data_config.get("psf_divisor", 255.0))
     if "psf_background" in data_config:
         background = float(data_config["psf_background"])
     else:

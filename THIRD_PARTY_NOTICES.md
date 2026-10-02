@@ -10,28 +10,45 @@ The tracked files under `src/models/baselines/` were mechanically derived from r
 
 `multiwiener.py` is derived from the local research copy associated with [Waller-Lab/MultiWienerNet](https://github.com/Waller-Lab/MultiWienerNet). The upstream license at audited commit `f49a38e74a73bcf58f91a46d3ff0d2360d213283` is BSD 3-Clause: [immutable LICENSE](https://raw.githubusercontent.com/Waller-Lab/MultiWienerNet/f49a38e74a73bcf58f91a46d3ff0d2360d213283/LICENSE). The official text is included at `licenses/MultiWienerNet.txt`.
 
+The local Wiener class bodies and Wiener-normalize-U-Net ensembles correspond
+to [the pinned PyTorch source](https://github.com/Waller-Lab/MultiWienerNet/blob/f49a38e74a73bcf58f91a46d3ff0d2360d213283/pytorch/models/wiener_model.py).
+
+## Lensless Learning
+
+`leadmm_unet.py` and the stack-convolution blocks in `_blocks.py` correspond
+to [Waller-Lab/LenslessLearning's U-Net source](https://github.com/Waller-Lab/LenslessLearning/blob/eaab0fb694a4f51fdda382a53f92832af98fd692/models/unet.py)
+at commit `eaab0fb694a4f51fdda382a53f92832af98fd692`. The research copy
+generalizes channels and retains batch dimensions. The BSD-3-Clause copyright
+notice, conditions, and disclaimer are included in `licenses/LenslessLearning.txt`.
+
 ## LensNet
 
 `lensnet.py` uses [the official LensNet source](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/LensNet.py), with explicit dataset PSF, Wiener initialization, and clipping options. The upstream license at audited commit `a6977ad9f1a84971b9960acb97e3f370f96d302e` is the MIT License with its Nick Chen copyright notice: [immutable LICENSE](https://raw.githubusercontent.com/baijiesong/Lensnet/a6977ad9f1a84971b9960acb97e3f370f96d302e/LICENSE). The official text is included at `licenses/LensNet.txt`, and the source file carries its attribution.
+
+The research `mwdns.py`, `updn.py`, and their DoubleConv/Down/Up/OutConv helpers
+in `_blocks.py` also correspond to that repository's
+[MWDNs.py](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/MWDNs.py)
+and [UPDN.py](https://github.com/baijiesong/Lensnet/blob/a6977ad9f1a84971b9960acb97e3f370f96d302e/models/UPDN.py).
+Dataset PSF injection, grayscale support, and output handling are research
+adaptations; those differences do not make the original portions independently
+licensed code. LayerNorm helpers in `_blocks.py` correspond to the NAFNet source
+and retain its separately included notice.
 
 These upstream license findings identify the referenced projects and commits. They do not by themselves prove that every local research copy is identical to, derived solely from, or redistributable under the corresponding upstream license.
 
 ## Research baseline copies
 
-The following derived modules had no license header in the audited source files and no applicable license file was found in the shared `models`, `functools`, or `train/lensless/CAW/3D` roots:
+The following derived modules still lack a complete upstream correspondence or
+author-origin record after the bounded source audit:
 
 - `admm.py`
 - local `external_baselines/deeplir.py` (the audited upstream repository has no license file)
-- `leadmm_unet.py`
 - local `external_baselines/modl.py` (includes LenslessPiCam-derived code under GPLv3 at the matching source revision; complete local-wrapper provenance remains unresolved)
-- `multiwiener.py` (upstream license identified above; local-copy correspondence still requires confirmation)
-- `mwdns.py`
 - `unet.py`
-- `updn.py`
 - `wiener.py`
-- `_blocks.py` and `_utils.py`, which contain only direct helper subsets required by those modules
+- `_utils.py`
 
-Their inclusion here is provenance documentation, not a declaration that they are relicensed under any project-wide license. A local file without a license header does not establish its license status. DeepLIR and MoDL must remain untracked unless redistribution authorization is established; local-copy correspondence for all other derived modules must also be confirmed before public release.
+Their inclusion here is provenance documentation, not a declaration that they are relicensed under any project-wide license. A local file without a license header does not establish its license status. DeepLIR and MoDL must remain untracked unless redistribution authorization is established; the remaining tracked modules above require source or author-origin confirmation before public release. This source audit does not establish a project-wide license.
 
 ## MoDL Source Audit
 

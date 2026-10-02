@@ -91,6 +91,31 @@ def test_synthetic_psf_is_seeded_and_path_independent() -> None:
     assert not torch.equal(first, build_psf(changed_seed))
 
 
+def test_diffusercam_baselines_preserve_raw_psf_and_notebook_scaling(tmp_path: Path) -> None:
+    from models.baselines import _prepare_psf
+
+    image = np.arange(48, dtype=np.uint8).reshape(6, 8) + 12
+    cv2.imwrite(str(tmp_path / "psf.tiff"), image)
+    for name in ("admm", "updn"):
+        config = load_config(str(PROJECT_ROOT / "configs/diffusercam.yaml"), {"model": {"name": name}})
+        config["data"]["root"] = str(tmp_path)
+        config["model"].update(height=6, width=8)
+        raw = torch.from_numpy(image).float().unsqueeze(0).unsqueeze(0)
+        psf = build_psf(config)
+        assert torch.equal(psf, raw)
+        prepared = _prepare_psf(psf, config["model"]["options"])
+        torch.testing.assert_close(prepared, raw / 255 if name == "admm" else raw, atol=1e-7, rtol=1e-7)
+    assert load_config(str(PROJECT_ROOT / "configs/diffusercam.yaml"), {"model": {"name": "leadmmu"}})["eval"]["normalize"] == "max"
+
+
+def test_multiwiener_deeplir_profile_uses_l2_psf() -> None:
+    from models.baselines import _prepare_psf
+
+    config = load_config(str(PROJECT_ROOT / "configs/multiwienernet.yaml"), {"model": {"name": "deeplir"}})
+    psf = _prepare_psf(torch.arange(144, dtype=torch.float32).reshape(1, 9, 4, 4) + 1, config["model"]["options"])
+    torch.testing.assert_close(torch.linalg.norm(psf), torch.tensor(1.0))
+
+
 def test_widercam_affine_and_data_root(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "widercam"
     (root / "images").mkdir(parents=True)

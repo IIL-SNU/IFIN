@@ -23,17 +23,13 @@ def to_tensor_or_numpy(data):
 def norm(img, normalization="max"):
     if normalization == "max":
         if torch.is_tensor(img):
-            maximum = img.reshape(img.size(0), -1).max(1)[0].reshape(img.size(0), 1, 1, 1)
+            maximum = img.reshape(img.size(0), -1).max(1)[0].reshape(img.size(0), 1, 1, 1) if img.ndim > 3 else img.max()
             return img / maximum
         return ((img / np.max(img)) * 255).astype(np.uint8)
-    if normalization == "linalg":
-        if torch.is_tensor(img):
-            norms = torch.linalg.norm(img.reshape(img.size(0), -1), dim=1).reshape(img.size(0), 1, 1, 1)
-            return (img / norms) / norms
-        return (img / np.linalg.norm(img.reshape(-1)) * 255).astype(np.uint8)
+    # The research helper's "linalg" option actually dispatches to min-max.
     if torch.is_tensor(img):
-        minimum = img.reshape(img.size(0), -1).min(1)[0].reshape(img.size(0), 1, 1, 1)
-        maximum = img.reshape(img.size(0), -1).max(1)[0].reshape(img.size(0), 1, 1, 1)
+        minimum = img.reshape(img.size(0), -1).min(1)[0].reshape(img.size(0), 1, 1, 1) if img.ndim > 3 else img.min()
+        maximum = img.reshape(img.size(0), -1).max(1)[0].reshape(img.size(0), 1, 1, 1) if img.ndim > 3 else img.max()
         return (img - minimum) / (maximum - minimum)
     return ((img - np.min(img)) / (np.max(img) - np.min(img)) * 255).astype(np.uint8)
 

@@ -20,7 +20,7 @@ from config import add_config_arguments, cli_overrides, load_config  # noqa: E40
 from losses.basic import ReconstructionLoss  # noqa: E402
 from metrics.basic import normalize_images  # noqa: E402
 from models.ifin import build_ifin_model  # noqa: E402
-from utils.checkpoint import load_checkpoint  # noqa: E402
+from utils.checkpoint import load_checkpoint, save_checkpoint  # noqa: E402
 
 
 def test_cli_selects_ifin_k_from_paper_settings():
@@ -85,6 +85,18 @@ def test_evaluation_does_not_rescale_ground_truth():
         torch.device("cpu"), ReconstructionLoss(config), metric_names=["psnr"],
     )
     assert result["psnr"] == pytest.approx(10 * np.log10(4))
+
+
+def test_deeplir_selects_final_output_and_denoiser_gradient():
+    intermediate = torch.ones(1, 1, 2, 2, requires_grad=True)
+    denoiser_weight = nn.Parameter(torch.tensor(0.5))
+    final = intermediate * denoiser_weight
+    image, _, _ = runner._outputs({"model": {"name": "deeplir"}}, (intermediate, final))
+    assert image is final
+    image.square().mean().backward()
+    assert denoiser_weight.grad is not None and denoiser_weight.grad.item() != 0
+    image, _, _ = runner._outputs({"model": {"name": "multiwienernet"}}, (final, intermediate))
+    assert image is final
 
 
 def test_diffusercam_numpy_input_matches_dataset_rgb_order(tmp_path):
@@ -209,6 +221,15 @@ def test_train_resume_and_real_input_artifact(
     config["train"]["epochs"] = 2
     resumed = runner.train(config, str(checkpoint_path))
     assert resumed["epoch"] == 2
+
+    legacy = dict(checkpoint)
+    legacy.pop("config")
+    legacy.pop("rng_state")
+    legacy["epoch"] = 0
+    legacy_path = tmp_path / "legacy.pth"
+    save_checkpoint(legacy_path, legacy)
+    legacy_resumed = runner.train(config, str(legacy_path))
+    assert [row["epoch"] for row in legacy_resumed["history"]] == [2]
 
     input_path = tmp_path / "measurement.npy"
     np.save(input_path, np.ones((1, 2, 2), dtype=np.float32))

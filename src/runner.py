@@ -44,10 +44,12 @@ def _build_loader(config: Dict[str, Any], split: str) -> DataLoader:
 def _outputs(
     config: Dict[str, Any], output: Any
 ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
-    if config["model"].get("name", "ifin").lower() == "ifin":
+    name = config["model"].get("name", "ifin").lower()
+    if name == "ifin":
         image, measurement, initial = output
         return image, measurement, initial
-    return (output[0] if isinstance(output, (tuple, list)) else output), None, None
+    index = 1 if name == "deeplir" else 0
+    return (output[index] if isinstance(output, (tuple, list)) else output), None, None
 
 
 def _rng_state() -> Dict[str, Any]:
@@ -219,6 +221,8 @@ def train(config: Dict[str, Any], checkpoint_path: str | None = None) -> Dict[st
         elif psf_scheduler and checkpoint.get("scheduler_psf_state_dict"):
             psf_scheduler.load_state_dict(checkpoint["scheduler_psf_state_dict"])
         start_epoch = int(checkpoint.get("epoch", 0))
+        if "epoch" in checkpoint and "config" not in checkpoint:
+            start_epoch += 1
         best_loss = float(checkpoint.get("best_loss", best_loss))
         if checkpoint.get("rng_state"):
             _restore_rng(checkpoint["rng_state"])

@@ -11,7 +11,7 @@ baselines:
     options: {psf_norm: max, psf_scale: 0.01, center_index: 4, gaussian_windows: 3, in_channels: 1, out_channels: 1}
   admm:
     name: admm
-    options: {psf_norm: none, psf_scale: 0.00392156862745098, center_index: 4, iterations: 100, stacks: 1, trainable: true, in_channels: 1, out_channels: 1}
+    options: {psf_norm: none, psf_scale: 0.00392156862745098, implementation: modl, center_index: 4, iterations: 100, stacks: 1, trainable: true, in_channels: 1, out_channels: 1}
   unet:
     name: unet
     options: {psf_norm: none, psf_scale: 0.00392156862745098, implementation: shared, in_channels: 1, out_channels: 1}
@@ -36,7 +36,7 @@ baselines:
   leadmmu:
     name: leadmmu
     eval: {normalize: max}
-    options: {psf_norm: max, psf_scale: 1.0, center_index: 4, iterations: 5, height: 224, width: 320, in_channels: 1, out_channels: 1}
+    options: {psf_norm: max, psf_scale: 1.0, implementation: modl, center_index: 4, iterations: 5, height: 224, width: 320, in_channels: 1, out_channels: 1}
   deeplir:
     name: deeplir
-    options: {psf_norm: max, psf_scale: 1.0, center_index: 4, iterations: 5, dim: 32, dim_mults: [1, 2, 4, 8], in_channels: 1, out_channels: 1}
+    options: {psf_norm: l2, psf_scale: 1.0, center_index: 4, iterations: 5, dim: 32, dim_mults: [1, 2, 4, 8], in_channels: 1, out_channels: 1}

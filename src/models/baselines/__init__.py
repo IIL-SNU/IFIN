@@ -75,7 +75,8 @@ def _build_wiener(options, psf, device, config):
 
 
 def _build_admm(options, psf, device, config):
-    model = ADMMs(
+    cls = load_external("modl", options).ADMMs if options.get("implementation") == "modl" else ADMMs
+    model = cls(
         _prepare_psf(psf, options),
         int(options.get("iterations", 30)),
         int(options.get("stacks", 1)),
@@ -167,7 +168,8 @@ def _build_leadmmu(options, psf, device, config):
     height = int(options.get("height", psf.shape[-2]))
     width = int(options.get("width", psf.shape[-1]))
     unet = UNet270480((channels, height, width))
-    admms = ADMMs(_prepare_psf(psf, options).squeeze(0), int(options.get("iterations", 5)), 1, device=device)
+    cls = load_external("modl", options).ADMMs if options.get("implementation") == "modl" else ADMMs
+    admms = cls(_prepare_psf(psf, options).squeeze(0), int(options.get("iterations", 5)), 1, device=device)
     return LeADMMU(unet, admms)
 
 
