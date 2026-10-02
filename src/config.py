@@ -89,6 +89,7 @@ def load_config(
                 {"name": profile["name"], "options": profile.get("options", {})},
             )
             _deep_update(config["data"], profile.get("data", {}))
+            _deep_update(config.setdefault("eval", {}), profile.get("eval", {}))
             config["data"]["psf_crop"] = profile.get("data", {}).get("psf_crop")
             for key in ("in_channels", "out_channels"):
                 if key in profile.get("options", {}):

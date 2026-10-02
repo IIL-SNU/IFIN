@@ -229,6 +229,12 @@ MultiWienerNet/
 WiderCam target alignment and the MultiWienerNet crop/downsampling are applied
 by the dataset loaders. Datasets and trained checkpoints remain external.
 
+Evaluation follows each notebook's prediction normalization without rescaling
+ground truth. DiffuserCam additionally reports `_crop` metrics; WiderCam reports
+`_dewarped` metrics after undoing target alignment. The unsuffixed metrics use
+the full frame. See [Evaluation Convention](docs/code_provenance.md#evaluation-convention)
+before comparing results across datasets.
+
 ## WiderCam Dataset
 
 We introduce **WiderCam**, a wide-field lensless reconstruction benchmark captured with a compact phase-mask camera. The dataset contains 25,000 paired measurements, split into 24,000 training and 1,000 test images, with strong field-dependent degradation over a wide field of view. Raw measurements are captured at 4608 x 2592 using a Sony IMX708 sensor and resized to 480 x 270; supervision is affine-aligned offline from the display-capture pair.

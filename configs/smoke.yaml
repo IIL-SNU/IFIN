@@ -19,6 +19,7 @@ eval:
   batch_size: 1
   num_workers: 0
   metrics: [psnr]
+  metric_view: null
 loss:
   lpips: 0.0
 checkpoint:

@@ -6,9 +6,13 @@ import torch
 def normalize_images(
     images: torch.Tensor, mode: str | bool | None = "max"
 ) -> torch.Tensor:
-    if mode in (True, "max"):
+    if mode == "clip_max":
+        images = images.clamp(0, 1)
+    if mode in (True, "max", "clip_max"):
         maximum = images.amax(dim=(-3, -2, -1), keepdim=True).clamp_min(1e-12)
         images = images / maximum
+    elif mode not in (False, None, "none"):
+        raise ValueError(f"Unknown image normalization: {mode}")
     return images.clamp(0, 1)
 
 

@@ -4,6 +4,7 @@ data:
   psf_normalization: null
 eval:
   batch_size: 1
+  normalize: clip_max
 baselines:
   wiener:
     name: wiener

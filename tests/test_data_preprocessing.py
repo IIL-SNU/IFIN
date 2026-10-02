@@ -19,6 +19,28 @@ from data import build_dataset, build_psf
 from data.benchmarks import WiderCamTargetTransform
 
 
+def test_diffusercam_evaluation_crop_uses_flipped_coordinates():
+    from data.benchmarks import evaluation_view
+
+    image = torch.arange(270 * 480, dtype=torch.float32).reshape(1, 1, 270, 480)
+    cropped = evaluation_view(image, {"eval": {"metric_view": "crop"}})
+    assert cropped.shape == (1, 1, 210, 380)
+    assert torch.equal(cropped, image.flip(-2)[..., 60:, 62:-38])
+
+
+def test_widercam_evaluation_dewarping_undoes_forward_translation():
+    from data.benchmarks import evaluation_view
+
+    image = np.zeros((3, 4, 1), dtype=np.uint8)
+    image[1, 1, 0] = 255
+    matrix = [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
+    forward = WiderCamTargetTransform((3, 4), matrix)(image).unsqueeze(0)
+    config = {"eval": {"metric_view": "dewarped"}, "data": {"affine": {"matrix": matrix}}}
+    restored = evaluation_view(forward.expand(2, -1, -1, -1), config)
+    expected = torch.from_numpy(image).permute(2, 0, 1).float().div(255).unsqueeze(0)
+    torch.testing.assert_close(restored, expected.expand_as(restored), atol=1e-6, rtol=0)
+
+
 def test_benchmark_config_runtime_schema() -> None:
     model_keys = {
         "name",
@@ -44,8 +66,9 @@ def test_benchmark_config_runtime_schema() -> None:
         assert set(config["model"]) == model_keys
         expected_loss_keys = loss_keys | ({"lpips_normalize"} if name == "widercam" else set())
         assert set(config["loss"]) == expected_loss_keys
-        assert config["eval"]["normalize"] == "max"
-        assert config["eval"]["clip"] is True
+        assert config["eval"]["normalize"] == ("clip_max" if name == "widercam" else "none")
+        baseline = load_config(str(PROJECT_ROOT / "configs" / f"{name}.yaml"), {"model": {"name": "wiener"}})
+        assert baseline["eval"]["normalize"] == ("max" if name == "diffusercam" else "clip_max")
     assert load_config(str(PROJECT_ROOT / "configs" / "diffusercam.yaml"))["model"]["k"] == 16
     assert load_config(str(PROJECT_ROOT / "configs" / "smoke.yaml"))["model"]["k"] == 1
     default_config = load_config(str(PROJECT_ROOT / "configs" / "default.yaml"))

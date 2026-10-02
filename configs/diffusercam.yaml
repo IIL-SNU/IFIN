@@ -40,8 +40,8 @@ eval:
   num_workers: 4
   num_samples: null
   pin_memory: false
-  normalize: max
-  clip: true
+  normalize: none
+  metric_view: crop
 
 optimizer:
   lr: 0.0001

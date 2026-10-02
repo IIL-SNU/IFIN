@@ -36,6 +36,7 @@ def _opencv_matrix_to_theta(
     width: int,
     *,
     align_corners: bool = False,
+    inverse: bool = True,
 ) -> torch.Tensor:
     identity = torch.eye(3, device=matrix.device, dtype=matrix.dtype)
     if align_corners:
@@ -63,7 +64,26 @@ def _opencv_matrix_to_theta(
 
     homogeneous = identity.clone()
     homogeneous[:2] = matrix
-    return (scale @ torch.linalg.inv(homogeneous) @ scale_inverse)[:2].unsqueeze(0)
+    mapping = torch.linalg.inv(homogeneous) if inverse else homogeneous
+    return (scale @ mapping @ scale_inverse)[:2].unsqueeze(0)
+
+
+def evaluation_view(images: torch.Tensor, config: Dict[str, Any]) -> torch.Tensor:
+    view = config["eval"]["metric_view"]
+    if view == "crop":
+        return TF.resize(images, [270, 480]).flip(-2)[..., 60:, 62:-38]
+    if view == "dewarped":
+        affine = config["data"]["affine"]
+        align_corners = bool(affine.get("align_corners", False))
+        matrix = images.new_tensor(affine["matrix"])
+        theta = _opencv_matrix_to_theta(
+            matrix, *images.shape[-2:], align_corners=align_corners, inverse=False
+        ).expand(images.shape[0], -1, -1)
+        grid = F.affine_grid(theta, images.shape, align_corners=align_corners)
+        return F.grid_sample(
+            images, grid, mode="bicubic", padding_mode="zeros", align_corners=align_corners
+        ).clamp(0, 1)
+    raise ValueError(f"Unknown evaluation metric view: {view}")
 
 
 class WiderCamTargetTransform:

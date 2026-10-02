@@ -81,6 +81,25 @@ DiffuserCam uses the notebook-selected FIX configuration with `k=16`. The
 referenced best checkpoint is unavailable, so real-data inference without a
 checkpoint is a pipeline smoke check only and is not a benchmark result.
 
+## Evaluation Convention
+
+Ground truth is clipped to `[0,1]` but is not independently max-normalized
+by the evaluator. The MultiWienerNet dataset loader already normalizes each
+measurement and target as in its source. Prediction normalization follows
+the selected notebook's test-dataset loop, not its separate simulation cells:
+
+| Dataset | IFIN prediction | Baseline prediction | Additional metric frame |
+| --- | --- | --- | --- |
+| WiderCam | Clip, then divide by the image maximum | Same | Undo target alignment; suffix `_dewarped` |
+| DiffuserCam | Clip only | Divide by the image maximum, then clip; Le-ADMM-U clips only | Resize to 270 x 480, flip vertically, crop `[60:,62:-38]`; suffix `_crop` |
+| MultiWienerNet | Clip only | Clip, then divide by the image maximum; Le-ADMM-U reverses that order | None; the source's duplicate full-frame metrics are omitted |
+
+Metrics are calculated per image and averaged by sample count. Reported
+unsuffixed metrics always use the full aligned frame; suffixed metrics use
+the explicitly listed transformed frame. Transformations are shared by the
+CLI and released notebooks. Set `eval.metric_view: null` to omit secondary
+metrics. These evaluation transformations do not change the training loss.
+
 ## Training Sources
 
 - WiderCam: `train/lensless/CAW/SVLensless/` scripts and their saved run files.

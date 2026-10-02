@@ -20,6 +20,13 @@ Do not publish data, weights, notebook outputs, or machine-specific paths.
 Implementation commit: `5a68b38ab473c1ece55aaf31b54bcf7c35c92a59` on
 `IIL-SNU/IFIN` main. The unrelated local Fourier-PSF notebook was not included.
 
+## Evaluation Fidelity Follow-Up
+
+- [x] Verify auxiliary loss weights and archived PSF penalty against training sources.
+- [x] Match notebook prediction normalization without rescaling ground truth.
+- [x] Expose the notebook crop/dewarped metrics and verify their coordinate transforms.
+- [x] Re-run tests and real-data CLI evaluation.
+
 ## Verification
 
 Compare the renamed model directly against both research implementations
@@ -39,20 +46,26 @@ small fixtures, then run the public CLI on actual available data and weights.
 
 ## Verified Results
 
-- 36 tests passed, including direct forward/input-gradient equivalence against
+- 42 tests passed, including direct forward/input-gradient equivalence against
   both research IFIN sources and atomic checkpoint replacement after mmap loading.
 - 30 comparison-model/dataset real-size forward cases passed, with strict loading
   for the available learned weights. Some cases intentionally used random weights
   when the notebook did not select a checkpoint for that dataset/model pair.
 - Actual WiderCam and MultiWienerNet IFIN weights passed CLI evaluation with
   PSNR, SSIM, and LPIPS and saved reconstruction images.
+  Evaluation now uses notebook-specific prediction normalization without
+  rescaling ground truth. Crop/dewarped transforms are bit-identical to the
+  original source helpers; they are reported separately from full-frame metrics.
 - DiffuserCam passed real-data inference with untrained IFIN; the named notebook
   IFIN checkpoint is missing, so no pretrained DiffuserCam metric is claimed.
-- WiderCam completed one real-data training step and validation.
+- WiderCam and MultiWienerNet each completed one real-data training step and validation.
+- NAFNet completed one real-data training step and validation through the same
+  shared runner. YAML measurement/ISO loss weights have a direct regression check.
+  The archived squared PSF non-negativity penalty is applied during training only.
 - DeepLIR/MoDL external preparation and local forwards passed. Their source copies
   remain gitignored; the public code contains adapters and preparation tooling.
 - Core Ruff diagnostics and compileall passed. Python/YAML LSPs were unavailable;
   configuration parsing and runtime tests were used instead.
 - A staged, clean public-source copy passed train/eval/infer smoke commands and
-  31 tests. Five optional checks skipped because research/external sources were
+  37 tests. Five optional checks skipped because research/external sources were
   intentionally absent from that copy.

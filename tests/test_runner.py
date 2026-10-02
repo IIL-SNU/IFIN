@@ -17,7 +17,43 @@ if str(SRC_ROOT) not in sys.path:
 import runner  # noqa: E402
 from config import load_config  # noqa: E402
 from losses.basic import ReconstructionLoss  # noqa: E402
+from metrics.basic import normalize_images  # noqa: E402
 from utils.checkpoint import load_checkpoint  # noqa: E402
+
+
+def test_yaml_measurement_and_iso_loss_weights_are_applied():
+    criterion = ReconstructionLoss({"loss": {"measurement": 2.0, "iso": 3.0}})
+    zero = torch.zeros(1, 1, 2, 2)
+    one = torch.ones_like(zero)
+    loss = criterion(zero, zero, one, zero, one)
+    assert loss.item() == pytest.approx(5.0)
+
+
+def test_psf_penalty_matches_squared_training_only_recipe():
+    criterion = ReconstructionLoss({"loss": {"psf": 2.0}})
+    zero = torch.zeros(1, 1, 2, 2)
+    psf = torch.tensor([-2.0, 3.0])
+    assert criterion(zero, zero, psf=psf).item() == pytest.approx(4.0)
+    assert criterion(zero, zero, psf=psf, train=False).item() == pytest.approx(0.0)
+
+
+def test_notebook_clip_before_max_normalization():
+    image = torch.tensor([[[[2.0, 0.5]]]])
+    assert torch.equal(normalize_images(image, "clip_max"), torch.tensor([[[[1.0, 0.5]]]]))
+    assert torch.equal(normalize_images(image, "max"), torch.tensor([[[[1.0, 0.25]]]]))
+    dim_image = torch.tensor([[[[-0.2, 0.25, 0.5]]]])
+    assert torch.equal(normalize_images(dim_image, "clip_max"), torch.tensor([[[[0.0, 0.5, 1.0]]]]))
+    assert torch.equal(normalize_images(torch.zeros_like(image), "clip_max"), torch.zeros_like(image))
+
+
+def test_evaluation_does_not_rescale_ground_truth():
+    config = {"model": {"name": "ifin"}, "eval": {"normalize": "max"}}
+    dataset = TensorDataset(torch.ones(1, 1, 2, 2), torch.full((1, 1, 2, 2), 0.5))
+    result = runner._run_loader(
+        config, TinyIFIN(), torch.utils.data.DataLoader(dataset),
+        torch.device("cpu"), ReconstructionLoss(config), metric_names=["psnr"],
+    )
+    assert result["psnr"] == pytest.approx(10 * np.log10(4))
 
 
 def test_diffusercam_numpy_input_matches_dataset_rgb_order(tmp_path):
@@ -80,7 +116,8 @@ def test_config_inheritance_env_and_baseline_profile(
         "inherits: base.yaml\neval: {batch_size: 2}\n", encoding="utf-8"
     )
     (tmp_path / "profiles.yaml").write_text(
-        "baselines:\n  wiener:\n    name: wiener\n    options: {in_channels: 1, out_channels: 1}\n",
+        "baselines:\n  wiener:\n    name: wiener\n    options: {in_channels: 1, out_channels: 1}\n"
+        "    eval: {normalize: none}\n",
         encoding="utf-8",
     )
     config = load_config(
@@ -92,6 +129,7 @@ def test_config_inheritance_env_and_baseline_profile(
     assert config["data"]["psf_crop"] is None
     assert config["data"]["psf_normalization"] == "none"
     assert config["eval"]["batch_size"] == 2
+    assert config["eval"]["normalize"] == "none"
     assert config["model"]["name"] == "wiener"
     assert config["model"]["in_channels"] == 1
 

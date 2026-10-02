@@ -18,9 +18,11 @@ class ReconstructionLoss(nn.Module):
         weights = (config or {}).get("loss", {})
         self.weights = {
             "image": float(weights.get("image", 1.0)),
-            "consistency_image": float(weights.get("consistency_image", 0.0)),
+            "consistency_image": float(
+                weights.get("measurement", weights.get("consistency_image", 0.0))
+            ),
             "consistency_fourier": float(weights.get("consistency_fourier", 0.0)),
-            "wiener": float(weights.get("wiener", 0.0)),
+            "wiener": float(weights.get("iso", weights.get("wiener", 0.0))),
             "psf": float(weights.get("psf", 0.0)),
             "lpips": float(
                 weights.get("lpips", 0.0) if lpips_weight is None else lpips_weight
@@ -50,7 +52,6 @@ class ReconstructionLoss(nn.Module):
         train: bool = True,
         normalize: bool = True,
     ) -> torch.Tensor:
-        del train
         image_loss = self.mse(img_recon, img_target)
         if self.lpips is not None:
             pred, target = img_recon, img_target
@@ -74,6 +75,6 @@ class ReconstructionLoss(nn.Module):
                 )
         if iso_recon is not None:
             loss = loss + self.weights["wiener"] * self.mse(iso_recon, img_target)
-        if psf is not None:
-            loss = loss + self.weights["psf"] * torch.relu(-psf).mean()
+        if psf is not None and train:
+            loss = loss + self.weights["psf"] * torch.relu(-psf).square().mean()
         return loss

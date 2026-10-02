@@ -11,6 +11,7 @@ from torch import optim
 from torch.utils.data import DataLoader
 
 from data import build_dataset
+from data.benchmarks import evaluation_view
 from data.psf import build_psf
 from losses.basic import ReconstructionLoss
 from metrics.basic import build_metrics, metric_values, normalize_images
@@ -86,6 +87,9 @@ def _run_loader(
     model.train(training)
     metrics = build_metrics(metric_names or ["psnr"], device)
     totals = {"loss": 0.0, **{name: 0.0 for name in metrics}}
+    view = config.get("eval", {}).get("metric_view") if metric_names is not None else None
+    if view:
+        totals.update({f"{name}_{view}": 0.0 for name in metrics})
     samples = 0
     for measurement, target in loader:
         measurement, target = measurement.to(device), target.to(device)
@@ -107,6 +111,7 @@ def _run_loader(
                 measurement,
                 initial,
                 model_psf,
+                train=training,
             )
             if training:
                 loss.backward()
@@ -118,10 +123,15 @@ def _run_loader(
         mode = config.get("eval", {}).get("normalize", "max")
         prediction, reference = (
             normalize_images(image.detach(), mode),
-            normalize_images(target.detach(), mode),
+            target.detach().clamp(0, 1),
         )
         for name, values in metric_values(metrics, prediction, reference).items():
             totals[name] += float(values.sum())
+        if view:
+            for name, values in metric_values(
+                metrics, evaluation_view(prediction, config), evaluation_view(reference, config)
+            ).items():
+                totals[f"{name}_{view}"] += float(values.sum())
         samples += batch_size
     if not samples:
         raise ValueError("Dataset is empty")
@@ -339,11 +349,11 @@ def _load_input(path: str, config: Dict[str, Any]) -> torch.Tensor:
     return tensor.unsqueeze(0)
 
 
-def _save_image(image: torch.Tensor, path: Path) -> None:
+def _save_image(image: torch.Tensor, path: Path, mode: str | bool | None = "max") -> None:
     from PIL import Image
 
     array = (
-        (normalize_images(image)[0].permute(1, 2, 0).cpu().numpy() * 255)
+        (normalize_images(image, mode)[0].permute(1, 2, 0).cpu().numpy() * 255)
         .round()
         .astype(np.uint8)
     )
@@ -380,6 +390,6 @@ def infer(
         result["iso_recon_shape"] = tuple(initial.shape)
     if input_path or output_dir:
         artifact = Path(output_dir or "outputs/inference") / "reconstruction.png"
-        _save_image(image, artifact)
+        _save_image(image, artifact, config.get("eval", {}).get("normalize", "max"))
         result["output"] = str(artifact)
     return result

@@ -50,7 +50,7 @@ Execution counts indicate prior execution, not current reproducibility. Commente
 
 ### DiffuserCam
 
-Source: `run_model-Copy1.ipynb`; dataset `WallerDataset(/mnt/nas/Datasets/externel/wallerlab/dataset)`, PSF `psf.tiff`, resized to `270x480`.
+Source: `run_model-Copy1.ipynb`; dataset `WallerDataset` over the DiffuserCam data root, PSF `psf.tiff`, resized to `270x480`.
 
 | Baseline | Effective constructor settings | Checkpoint basename |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ Source: `run_model-Copy1.ipynb`; dataset `WallerDataset(/mnt/nas/Datasets/extern
 
 ### WiderCam (`IFIN_SV` in the notebook)
 
-Source: `run_model_IFIN.ipynb`; dataset `IFINDataset(/mnt/nas/Datasets/internel/IFIN_SV)`, fixed affine alignment, PSF `point_4_4_rgb8.png`, resize `270x480`, subtract `15/255`, clamp negative values.
+Source: `run_model_IFIN.ipynb`; dataset `IFINDataset` over the WiderCam data root (historically named `IFIN_SV`), fixed affine alignment, PSF `point_4_4_rgb8.png`, resize `270x480`, subtract `15/255`, clamp negative values.
 
 | Baseline | Effective constructor settings | Checkpoint basename |
 | --- | --- | --- |
@@ -107,7 +107,7 @@ Learned branches load `torch.load(path, map_location='cpu')['model_state_dict']`
 All recorded learned checkpoint paths existed during the audit. All 21 selected learned dataset/model combinations were also loaded into their profile constructors with `strict=True`. The following source/checkpoint inconsistencies remain:
 
 - Every audited notebook's first code cell is syntactically invalid because each `sys.path.append(` line lacks `)`. Execution counts therefore describe an older kernel state, not a clean rerun.
-- WiderCam imports `IFIN2` from `/home/atti/IFIN`; neither that directory nor `IFIN2.py` exists locally. The baseline package does not depend on it.
+- WiderCam imports `IFIN2` from an unavailable external source directory. The baseline package does not depend on it.
 - WiderCam Le-ADMM-U resolves `EnsembleModel` from `DeepLIR.py` and passes `(unet, admm)` to a constructor declared `(admm_model, denoise_model)`, unlike the inline DiffuserCam/MultiWiener ensemble. The factory uses the checkpoint-facing inline `unet`/`admms` attributes and preserves its forward order.
 - DiffuserCam/WiderCam evaluation resolves `MWDNet_CPSF` from `MWDN.py`, while their current training scripts import `MWDNs.py`; the selected checkpoints strictly load into the evaluated `MWDN.py` class, but provenance still points at inconsistent source filenames.
 - MultiWiener MoDL reads `TPARAMS['PSF']` before assigning it in that branch. The factory passes the selected center PSF directly without changing `MoDLNet3D` math.

@@ -4,6 +4,7 @@ data:
   psf_normalization: null
 eval:
   batch_size: 1
+  normalize: clip_max
 baselines:
   wiener:
     name: wiener
@@ -34,6 +35,7 @@ baselines:
     options: {psf_norm: max, psf_scale: 1.0, center_index: 4, iterations: 5, psf_in_channels: 1, three_dimensional: true, in_channels: 1, out_channels: 1}
   leadmmu:
     name: leadmmu
+    eval: {normalize: max}
     options: {psf_norm: max, psf_scale: 1.0, center_index: 4, iterations: 5, height: 224, width: 320, in_channels: 1, out_channels: 1}
   deeplir:
     name: deeplir
