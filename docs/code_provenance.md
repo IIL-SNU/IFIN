@@ -50,6 +50,7 @@ equivalent to these research checkpoints.
 | `IFIN_9_20250923-105638_best.pth` | `1 x 9 x 130 x 133` | 560 | FIXNet |
 | `IFIN_k_4_20251030-131015_best.pth` | `1 x 4 x 224 x 320` | 577 | historical CAW6 |
 | `IFIN_k_1_20251030-140124_best.pth` | `1 x 1 x 224 x 320` | 577 | historical CAW6 |
+| `IFIN_20250910-031003_best.pth` | `1 x 9 x 224 x 320` | 577 | historical CAW6 |
 | `IFIN_DiffuserCam_k16_20251101_best.pth` | `1 x 16 x 262 x 278` | 560 | IFIN, legacy state keys |
 
 The DiffuserCam notebook references `FIX_SV_20250918-061739_best.pth`, which
@@ -63,7 +64,11 @@ module. The verified `FIX` branch is packaged instead.
 Paper support sizes and checkpoint support sizes are not always identical.
 Evaluation initializes IFIN
 from the learned PSF stored in the checkpoint to preserve its exact support.
-The available MultiWienerNet k=1/k=4 experiments are not the paper's k=9 result.
+The MultiWienerNet k=1/k=4 weights are October 2025 experiments. A mature
+September 2025 k=9 checkpoint was recovered under the generic filename
+`IFIN_20250910-031003_best.pth`; it stores epoch 93 and a populated PSF optimizer
+state. Its archived training summary was not found, so its release validation
+uses the public evaluation code rather than an assumed historical metric.
 
 ## Dataset Reproduction Limits
 
@@ -80,8 +85,9 @@ mapping exactly. Its checkpoint-confirmed center PSF crop is
 `(center_y=133, center_x=236, height=130, width=133)`; the commented 135 x 135
 alternative is not used by the released configuration.
 
-General dataset YAML files default to `k=1`; the pretrained DiffuserCam preset
-selects `k=16`. Use `model.k` or `--k` to select 1, 4, 9, or 16 kernels; the paper
+General dataset YAML files default to `k=1`; pretrained presets select
+DiffuserCam `k=16`, WiderCam `k=9`, and MultiWienerNet `k=4` or `k=9`.
+Use `model.k` or `--k` to select 1, 4, 9, or 16 kernels; the paper
 uses k=9 for WiderCam and MultiWienerNet.
 The MultiWienerNet YAML preserves the historical CAW6 architecture, independently
 of the selected k. Checkpoint evaluation requires the original matching k.

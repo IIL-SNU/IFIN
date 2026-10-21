@@ -43,6 +43,8 @@ def load_manifest(path):
     checkpoints, filenames = {}, set()
     for entry in entries:
         _file_spec(entry)
+        if "directory" in entry:
+            _filename(entry["directory"])
         identifier = entry["id"]
         if not isinstance(identifier, str) or not identifier or identifier in checkpoints:
             raise ValueError("Checkpoint IDs must be nonempty and unique")
@@ -74,6 +76,14 @@ def _matches(path, spec):
 
 def restore_checkpoint(entry, parts_dir, output_dir):
     parts_dir, output_dir = Path(parts_dir), Path(output_dir)
+    if "directory" in entry:
+        directory = _filename(entry["directory"])
+        nested = parts_dir / directory
+        if all((nested / part["filename"]).is_file() for part in entry["parts"]):
+            parts_dir = nested
+        elif not all((parts_dir / part["filename"]).is_file() for part in entry["parts"]):
+            parts_dir = nested
+        output_dir = output_dir / directory
     output = output_dir / entry["filename"]
     if output.exists() or output.is_symlink():
         if _matches(output, entry):

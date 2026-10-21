@@ -74,6 +74,53 @@ def test_existing_unverified_file_is_never_overwritten(tmp_path):
     assert output.read_bytes() == b"user file"
 
 
+def test_checkpoint_directory_restores_inside_matching_folder(tmp_path):
+    folder = tmp_path / "WiderCam_k9"
+    folder.mkdir()
+    entry = checkpoint(folder, identifier="widercam_k9")
+    entry["directory"] = folder.name
+    parsed = restore.load_manifest(manifest_file(tmp_path, [entry]))[entry["id"]]
+    result = restore.restore_checkpoint(parsed, tmp_path, tmp_path)
+    assert result == folder / entry["filename"]
+    assert result.read_bytes() == b"firstsecond"
+    assert restore.restore_checkpoint(parsed, tmp_path, tmp_path) == result
+    assert all((folder / part["filename"]).is_file() for part in entry["parts"])
+
+
+def test_directory_manifest_accepts_legacy_flat_downloads(tmp_path):
+    entry = checkpoint(tmp_path)
+    entry["directory"] = "DiffuserCam_k16"
+    result = restore.restore_checkpoint(entry, tmp_path, tmp_path)
+    assert result == tmp_path / entry["directory"] / entry["filename"]
+    assert result.read_bytes() == b"firstsecond"
+    assert all((tmp_path / part["filename"]).is_file() for part in entry["parts"])
+
+
+def test_cli_selected_directory_works_without_other_checkpoint_parts(tmp_path):
+    folder = tmp_path / "MultiWienerNet_k9"
+    folder.mkdir()
+    selected = checkpoint(folder, identifier="multiwienernet_k9")
+    selected["directory"] = folder.name
+    absent = {"id": "not_downloaded", **file_spec("absent.pth", b"absent"),
+              "parts": [file_spec("absent.part001", b"absent")]}
+    manifest = manifest_file(tmp_path, [absent, selected])
+    output = tmp_path / "restored"
+    command = [sys.executable, str(SCRIPT), "--manifest", str(manifest),
+               "--checkpoint", selected["id"], "--output-dir", str(output)]
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert (output / folder.name / selected["filename"]).read_bytes() == b"firstsecond"
+    assert not (output / "absent.pth").exists()
+
+
+@pytest.mark.parametrize("directory", ["../outside", "/outside", "..\\outside", "C:outside", "", ".", ".."])
+def test_manifest_rejects_unsafe_checkpoint_directories(tmp_path, directory):
+    entry = checkpoint(tmp_path)
+    entry["directory"] = directory
+    with pytest.raises(ValueError, match="Unsafe filename"):
+        restore.load_manifest(manifest_file(tmp_path, [entry]))
+
+
 @pytest.mark.parametrize("filename", ["../outside.pth", "/outside.pth", "..\\outside.pth", "C:outside.pth"])
 def test_manifest_rejects_unsafe_filenames(tmp_path, filename):
     entry = checkpoint(tmp_path)

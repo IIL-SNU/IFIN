@@ -177,30 +177,43 @@ optimizer states when applicable, scheduler states, and the configuration.
 When supplying a checkpoint, select its original k with `--k`; learned PSF
 tensors are never resized to fit a different field size.
 
-### Pretrained DiffuserCam
+### Pretrained Checkpoints
 
 [Download weights (Google Drive)](https://drive.google.com/drive/folders/1UZiyWqdqK75IQwusnfYNoKRT-fOa0neX)
 and follow the [restoration and evaluation guide](docs/checkpoints.md).
 
-| k | Checkpoint | Configuration |
+| Dataset | k | Configuration |
 | --- | --- | --- |
-| 16 | `IFIN_DiffuserCam_k16_20251101_best.pth` | `configs/diffusercam_k16.yaml` |
-| 1 | `IFIN_DiffuserCam_k1_20260507_best.pth` | `configs/diffusercam.yaml` |
+| [DiffuserCam](https://drive.google.com/drive/folders/1SEcb84fJrhJMX-AEEN-B98m2TrQI6cnK) | 16 | `configs/diffusercam_k16.yaml` |
+| [DiffuserCam](https://drive.google.com/drive/folders/1Pn7T7luA-bqVV_Ol2slkUzH_oh3SHVZs) | 1 | `configs/diffusercam.yaml` |
+| [WiderCam](https://drive.google.com/drive/folders/1qKaSSRfc8dUiKyG3z0iQ_xHUWa_65tVJ) | 9 | `configs/widercam_k9.yaml` |
+| [MultiWienerNet](https://drive.google.com/drive/folders/1WwuVMuXJKK1GwlLlQUPOQs7nw8C_TD4K) | 9 | `configs/multiwienernet_k9.yaml` |
+| [MultiWienerNet](https://drive.google.com/drive/folders/1IXdf_SyigkEgT2eT3tSRsv6_lOu3iLfg) | 4 | `configs/multiwienernet_k4.yaml` |
+| [MultiWienerNet](https://drive.google.com/drive/folders/1ULjV_zN93wmYZsRh9w134D2CPeOY2fBf) | 1 | `configs/multiwienernet.yaml` |
 
-The k=16 download has 34 parts and k=1 has three parts (at most 96 MiB each). Download
-`IFIN_checkpoints.json` alongside the weights, then restore and verify them:
+Download the selected checkpoint's folder (parts are at most 96 MiB each),
+together with the root `IFIN_checkpoints.json`. Keep the folder name unchanged.
+Select its ID when restoring; the `.pth` is written inside that folder:
 
 ```bash
-python scripts/restore_checkpoint.py --manifest /path/to/downloads/IFIN_checkpoints.json
+python scripts/restore_checkpoint.py --manifest /path/to/downloads/IFIN_checkpoints.json --checkpoint widercam_k9
 ```
 
-Both checkpoints use depth 3, width 32, and 270 x 480 RGB measurements.
-Learned PSFs are loaded without resizing; a separate calibration PSF is not required.
+Learned PSFs are loaded without resizing; a separate calibration PSF is not
+required. The guide lists filenames, checkpoint IDs, and dataset conventions.
+Checkpoints were trained in separate runs; see the guide for their provenance.
+The released WiderCam k=9 and MultiWienerNet k=1/4/9 weights were each tested
+on the full available evaluation split with the public CLI; see
+[release validation](docs/checkpoints.md#release-validation) for results.
 
 ```bash
-python eval.py --config configs/diffusercam_k16.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/IFIN_DiffuserCam_k16_20251101_best.pth --output outputs/diffusercam_metrics.json
-python eval.py --config configs/diffusercam.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/IFIN_DiffuserCam_k1_20260507_best.pth --output outputs/diffusercam_k1_metrics.json
-python infer.py --config configs/diffusercam_k16.yaml --checkpoint /path/to/IFIN_DiffuserCam_k16_20251101_best.pth --input /path/to/measurement.npy --output-dir outputs/diffusercam
+python eval.py --config configs/diffusercam_k16.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/downloads/DiffuserCam_k16/IFIN_DiffuserCam_k16_20251101_best.pth --output outputs/diffusercam_metrics.json
+python eval.py --config configs/diffusercam.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/downloads/DiffuserCam_k1/IFIN_DiffuserCam_k1_20260507_best.pth --output outputs/diffusercam_k1_metrics.json
+python eval.py --config configs/widercam_k9.yaml --data-root /path/to/WiderCam --checkpoint /path/to/downloads/WiderCam_k9/IFIN_WiderCam_k9_20250923_best.pth --output outputs/widercam_metrics.json
+python eval.py --config configs/multiwienernet_k4.yaml --data-root /path/to/MultiWienerNet --checkpoint /path/to/downloads/MultiWienerNet_k4/IFIN_MultiWienerNet_k4_20251030_best.pth --output outputs/multiwienernet_k4_metrics.json
+python eval.py --config configs/multiwienernet_k9.yaml --data-root /path/to/MultiWienerNet --checkpoint /path/to/downloads/MultiWienerNet_k9/IFIN_MultiWienerNet_k9_20250910_best.pth --output outputs/multiwienernet_k9_metrics.json
+python eval.py --config configs/multiwienernet.yaml --data-root /path/to/MultiWienerNet --checkpoint /path/to/downloads/MultiWienerNet_k1/IFIN_MultiWienerNet_k1_20251030_best.pth --output outputs/multiwienernet_k1_metrics.json
+python infer.py --config configs/diffusercam_k16.yaml --checkpoint /path/to/downloads/DiffuserCam_k16/IFIN_DiffuserCam_k16_20251101_best.pth --input /path/to/measurement.npy --output-dir outputs/diffusercam
 ```
 
 For a short test without external data or perceptual weights:
