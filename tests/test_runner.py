@@ -77,6 +77,20 @@ def test_pretrained_widercam_config_preserves_research_settings():
     assert load_config(str(PROJECT_ROOT / "configs/widercam.yaml"))["model"]["k"] == 1
 
 
+def test_pretrained_multiwienernet_config_preserves_historical_architecture():
+    config = load_config(str(PROJECT_ROOT / "configs/multiwienernet_k4.yaml"))
+    assert config["model"]["k"] == 4
+    assert config["model"]["in_channels"] == config["model"]["out_channels"] == 1
+    assert (config["model"]["height"], config["model"]["width"]) == (224, 320)
+    assert config["model"]["seed_blocks"] == "conv"
+    assert config["model"]["regularizer_activation"] == "sigmoid"
+    assert config["model"]["residual"] and config["model"]["bottleneck"]
+    assert config["model"]["upsample"] == "bilinear"
+    assert config["eval"]["normalize"] == "none"
+    assert config["eval"]["num_samples"] is None
+    assert load_config(str(PROJECT_ROOT / "configs/multiwienernet.yaml"))["model"]["k"] == 1
+
+
 def test_checkpoint_setup_preserves_psf_without_calibration_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

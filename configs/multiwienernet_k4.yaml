@@ -1,0 +1,4 @@
+inherits: multiwienernet.yaml
+
+model:
+  k: 4
