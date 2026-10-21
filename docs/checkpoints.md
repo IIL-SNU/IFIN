@@ -10,6 +10,8 @@ Weight files are not committed to Git.
 | `diffusercam_k16` | `IFIN_DiffuserCam_k16_20251101_best.pth` | 34 |
 | `diffusercam_k1` | `IFIN_DiffuserCam_k1_20260507_best.pth` | 3 |
 | `widercam_k9` | `IFIN_WiderCam_k9_20250923_best.pth` | 12 |
+| `widercam_k4` | `IFIN_WiderCam_k4_20251008_best.pth` | 6 |
+| `widercam_k1` | `IFIN_WiderCam_k1_20251004_best.pth` | 2 |
 | `multiwienernet_k9` | `IFIN_MultiWienerNet_k9_20250910_best.pth` | 15 |
 | `multiwienernet_k4` | `IFIN_MultiWienerNet_k4_20251030_best.pth` | 7 |
 | `multiwienernet_k1` | `IFIN_MultiWienerNet_k1_20251030_best.pth` | 2 |
@@ -33,6 +35,8 @@ downloads/
   DiffuserCam_k16/
   DiffuserCam_k1/
   WiderCam_k9/
+  WiderCam_k4/
+  WiderCam_k1/
   MultiWienerNet_k9/
   MultiWienerNet_k4/
   MultiWienerNet_k1/
@@ -59,7 +63,7 @@ python restore_checkpoint.py --manifest IFIN_checkpoints.json --checkpoint wider
 Replace `widercam_k9` with the ID of the checkpoint you downloaded.
 For example, use `--checkpoint multiwienernet_k9` for MultiWienerNet k=9.
 Repeat `--checkpoint` to select several downloaded checkpoints. Omit it only
-when all six sets of parts are present, because the default restores every
+when all eight sets of parts are present, because the default restores every
 entry in the manifest.
 Use `--output-dir /path/to/checkpoints` to write to a different directory.
 Checkpoint subfolders are created inside that output root. For example,
@@ -72,7 +76,7 @@ Every part and the restored file are SHA-256 checked. Parts are preserved;
 an already valid output is verified and reused, while an unverified existing
 output is never overwritten. A failed restoration does not leave a partial
 `.pth` file. Allow at least twice the combined size of the selected checkpoints
-for downloaded parts and restored files (about 15 GB for the whole collection).
+for downloaded parts and restored files (about 16 GB for the whole collection).
 
 Expected restored SHA-256 checksums:
 
@@ -85,6 +89,12 @@ IFIN_DiffuserCam_k1_20260507_best.pth
 
 IFIN_WiderCam_k9_20250923_best.pth
 6efd8ded5cf7e811cec363bafeb4d3798b03cb90c583c474eda743515b9e339a
+
+IFIN_WiderCam_k4_20251008_best.pth
+c036f367ddb0b94e1768cef0c6b1885c68705825dec16608276b115a72af624b
+
+IFIN_WiderCam_k1_20251004_best.pth
+fac964927347fdd7d1996969c305c06dae2545665b3068388cd65774ebd06efc
 
 IFIN_MultiWienerNet_k9_20250910_best.pth
 2caf50fd2a406af3734efb350a687f641982844496e75432f129884401e527d9
@@ -105,6 +115,8 @@ Use the matching configuration, not another dataset's preset:
 | `diffusercam_k16` | `configs/diffusercam_k16.yaml` | RGB 270 x 480 | 262 x 278 |
 | `diffusercam_k1` | `configs/diffusercam.yaml` | RGB 270 x 480 | 262 x 278 |
 | `widercam_k9` | `configs/widercam_k9.yaml` | RGB 270 x 480 | 130 x 133 |
+| `widercam_k4` | `configs/widercam_k4.yaml` | RGB 270 x 480 | 135 x 135 |
+| `widercam_k1` | `configs/widercam_k1.yaml` | RGB 270 x 480 | 135 x 135 |
 | `multiwienernet_k9` | `configs/multiwienernet_k9.yaml` | Grayscale 224 x 320 | 224 x 320 |
 | `multiwienernet_k4` | `configs/multiwienernet_k4.yaml` | Grayscale 224 x 320 | 224 x 320 |
 | `multiwienernet_k1` | `configs/multiwienernet.yaml` | Grayscale 224 x 320 | 224 x 320 |
@@ -112,11 +124,16 @@ Use the matching configuration, not another dataset's preset:
 All use depth 3 and width 32. Learned PSFs are loaded without resizing.
 Legacy state keys are mapped to IFIN names and all weights are loaded strictly.
 A separate PSF calibration file is unnecessary when loading these checkpoints.
+WiderCam k=1/4 use the historical `refinement_block: rb_convg` option in the
+same IFIN implementation. Use their matching presets; overriding only `--k`
+on the k=9 preset does not select the correct architecture.
 
 ```bash
 python eval.py --config configs/diffusercam_k16.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/downloads/DiffuserCam_k16/IFIN_DiffuserCam_k16_20251101_best.pth --output outputs/diffusercam_metrics.json
 python eval.py --config configs/diffusercam.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/downloads/DiffuserCam_k1/IFIN_DiffuserCam_k1_20260507_best.pth --output outputs/diffusercam_k1_metrics.json
 python eval.py --config configs/widercam_k9.yaml --data-root /path/to/WiderCam --checkpoint /path/to/downloads/WiderCam_k9/IFIN_WiderCam_k9_20250923_best.pth --output outputs/widercam_metrics.json
+python eval.py --config configs/widercam_k4.yaml --data-root /path/to/WiderCam --checkpoint /path/to/downloads/WiderCam_k4/IFIN_WiderCam_k4_20251008_best.pth --output outputs/widercam_k4_metrics.json
+python eval.py --config configs/widercam_k1.yaml --data-root /path/to/WiderCam --checkpoint /path/to/downloads/WiderCam_k1/IFIN_WiderCam_k1_20251004_best.pth --output outputs/widercam_k1_metrics.json
 python eval.py --config configs/multiwienernet_k9.yaml --data-root /path/to/MultiWienerNet --checkpoint /path/to/downloads/MultiWienerNet_k9/IFIN_MultiWienerNet_k9_20250910_best.pth --output outputs/multiwienernet_k9_metrics.json
 python eval.py --config configs/multiwienernet_k4.yaml --data-root /path/to/MultiWienerNet --checkpoint /path/to/downloads/MultiWienerNet_k4/IFIN_MultiWienerNet_k4_20251030_best.pth --output outputs/multiwienernet_k4_metrics.json
 python eval.py --config configs/multiwienernet.yaml --data-root /path/to/MultiWienerNet --checkpoint /path/to/downloads/MultiWienerNet_k1/IFIN_MultiWienerNet_k1_20251030_best.pth --output outputs/multiwienernet_k1_metrics.json
@@ -165,6 +182,8 @@ presets above, with strict checkpoint loading and no sample limit:
 | Checkpoint ID | Test pairs | PSNR | SSIM | LPIPS |
 | --- | ---: | ---: | ---: | ---: |
 | `widercam_k9` | 998 | 25.4437 | 0.8235 | 0.2013 |
+| `widercam_k4` | 998 | 25.2553 | 0.8214 | 0.2038 |
+| `widercam_k1` | 998 | 25.0899 | 0.8138 | 0.2109 |
 | `multiwienernet_k9` | 4,426 | 30.9906 | 0.8662 | 0.1747 |
 | `multiwienernet_k4` | 4,426 | 30.2083 | 0.8551 | 0.1847 |
 | `multiwienernet_k1` | 4,426 | 29.7333 | 0.8477 | 0.1969 |
@@ -172,11 +191,23 @@ presets above, with strict checkpoint loading and no sample limit:
 These are checks of the released files under the dataset conventions above,
 not replacements for the paper's reported results. WiderCam values use the
 aligned full frame, not the secondary `_dewarped` metrics.
+The October WiderCam k=1/k=4 releases do not exactly reproduce the
+supplementary table's 24.963/25.148 dB values; the measurements above are
+reported for the actual distributed checkpoint files.
 
 ### Checkpoint Sources
 
 The WiderCam release is the notebook's September 2025 `FIX` branch checkpoint
 `IFIN_9_20250923-105638_best.pth`, renamed for clarity without changing its bytes.
+The October k=1/k=4 files are `IFIN_1_20251004-193707_best.pth` (epoch 97)
+and `IFIN_4_20251008-084033_best.pth` (epoch 98). They contain 528 state entries
+and use the historical ConvG-based RB rather than the k=9 refinement block.
+The original `IFIN2.py` and October training logs were not recovered; this
+configuration is reconstructed from checkpoint tensors and surviving model
+components, with strict loading and numerical fidelity tests. WiderCam k=4
+attribution was initially inferred from this matching topology and PSF support.
+The paper reports WiderCam k=1/4/9 in its supplementary PSF-field ablation;
+its k=16 result is on DiffuserCam, not WiderCam.
 
 MultiWienerNet k=9 was recovered as `IFIN_20250910-031003_best.pth` (stored
 epoch 93, nine learned PSFs). Its original training summary was unavailable;

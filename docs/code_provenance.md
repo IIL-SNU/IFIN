@@ -26,6 +26,11 @@ upsampling interpolation. The differences are explicit model options, not
 separate dataset model classes. Numerical forward and input-gradient
 equivalence is tested against both originals.
 
+WiderCam k=1/4 use the historical ConvG-based RB retained as `RBConvG` and
+selected by `model.refinement_block: rb_convg`. Its forward computation and
+input gradients are tested against `FIXNet.py` instantiated with its surviving
+`RB` class. Other presets keep their existing blocks and defaults.
+
 | Research name | Released name |
 | --- | --- |
 | `CAWNet` | `IFINNet` (also exported as `IFIN`) |
@@ -48,6 +53,8 @@ equivalent to these research checkpoints.
 | Filename | PSF shape | State entries | Architecture |
 | --- | --- | ---: | --- |
 | `IFIN_9_20250923-105638_best.pth` | `1 x 9 x 130 x 133` | 560 | FIXNet |
+| `IFIN_1_20251004-193707_best.pth` | `1 x 1 x 135 x 135` | 528 | historical ConvG-based RB |
+| `IFIN_4_20251008-084033_best.pth` | `1 x 4 x 135 x 135` | 528 | historical ConvG-based RB |
 | `IFIN_k_4_20251030-131015_best.pth` | `1 x 4 x 224 x 320` | 577 | historical CAW6 |
 | `IFIN_k_1_20251030-140124_best.pth` | `1 x 1 x 224 x 320` | 577 | historical CAW6 |
 | `IFIN_20250910-031003_best.pth` | `1 x 9 x 224 x 320` | 577 | historical CAW6 |
@@ -58,8 +65,14 @@ was not present in the inspected weights directory. The available pretrained
 release is a separately trained November 2025 checkpoint, not that historical
 file. Its configuration and checksum are documented in
 [Pretrained Checkpoints](checkpoints.md).
-The WiderCam notebook's experimental `IFIN2` branch references a missing
-module. The verified `FIX` branch is packaged instead.
+The WiderCam notebook's historical `IFIN2` branch references a missing module.
+The k=1/k=4 architecture is reconstructed from the 528 checkpoint tensors and
+surviving RB/ISO/FSO components. `ISO_0` and `ifi_block` are renamed to
+`initial_iso` and `ifib` when loading. All tensors must match exactly;
+the original October training logs were not recovered. The k=1 file is named
+in the WiderCam notebook; k=4 attribution was initially inferred from its
+matching topology, PSF support, and adjacent training date. The September k=9
+release retains the separately verified `FIX` branch.
 
 Paper support sizes and checkpoint support sizes are not always identical.
 Evaluation initializes IFIN
@@ -81,9 +94,10 @@ preserves this behavior instead of silently sorting it; the limitation is also
 recorded in `configs/multiwienernet.yaml`.
 
 WiderCam target alignment uses the notebook matrix and `grid_sample` inverse
-mapping exactly. Its checkpoint-confirmed center PSF crop is
-`(center_y=133, center_x=236, height=130, width=133)`; the commented 135 x 135
-alternative is not used by the released configuration.
+mapping exactly. The k=9 preset retains the checkpoint-confirmed PSF crop
+`(center_y=133, center_x=236, height=130, width=133)`. The k=1/k=4 presets use
+the historical 135 x 135 support. Loading a checkpoint always takes its saved
+PSFs without resizing or reading a separate calibration image.
 
 General dataset YAML files default to `k=1`; pretrained presets select
 DiffuserCam `k=16`, WiderCam `k=9`, and MultiWienerNet `k=4` or `k=9`.
