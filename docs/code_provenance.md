@@ -50,10 +50,13 @@ equivalent to these research checkpoints.
 | `IFIN_9_20250923-105638_best.pth` | `1 x 9 x 130 x 133` | 560 | FIXNet |
 | `IFIN_k_4_20251030-131015_best.pth` | `1 x 4 x 224 x 320` | 577 | historical CAW6 |
 | `IFIN_k_1_20251030-140124_best.pth` | `1 x 1 x 224 x 320` | 577 | historical CAW6 |
+| `IFIN_DiffuserCam_k16_20251101_best.pth` | `1 x 16 x 262 x 278` | 560 | IFIN, legacy state keys |
 
 The DiffuserCam notebook references `FIX_SV_20250918-061739_best.pth`, which
-was not present in the inspected weights directory. Do not replace it with an
-unrelated checkpoint and report the result as the published benchmark.
+was not present in the inspected weights directory. The available pretrained
+release is a separately trained November 2025 checkpoint, not that historical
+file. Its configuration and checksum are documented in
+[Pretrained Checkpoints](checkpoints.md).
 The WiderCam notebook's experimental `IFIN2` branch references a missing
 module. The verified `FIX` branch is packaged instead.
 
@@ -77,14 +80,16 @@ mapping exactly. Its checkpoint-confirmed center PSF crop is
 `(center_y=133, center_x=236, height=130, width=133)`; the commented 135 x 135
 alternative is not used by the released configuration.
 
-All released IFIN YAML files default to `k=1`. Use `model.k` or `--k` to select
-1, 4, 9, or 16 kernels; the paper uses k=9 for WiderCam and MultiWienerNet.
+General dataset YAML files default to `k=1`; the pretrained DiffuserCam preset
+selects `k=16`. Use `model.k` or `--k` to select 1, 4, 9, or 16 kernels; the paper
+uses k=9 for WiderCam and MultiWienerNet.
 The MultiWienerNet YAML preserves the historical CAW6 architecture, independently
 of the selected k. Checkpoint evaluation requires the original matching k.
 
 The DiffuserCam research notebook selects the FIX configuration with `k=16`.
-The referenced best checkpoint is unavailable, so real-data inference without a
-checkpoint is a pipeline smoke check only and is not a benchmark result.
+Use `configs/diffusercam_k16.yaml` for the available pretrained checkpoint.
+Real-data inference without a checkpoint is a pipeline smoke check only and
+is not a benchmark result.
 
 ## Evaluation Convention
 

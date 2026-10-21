@@ -1,0 +1,19 @@
+inherits: diffusercam.yaml
+
+model:
+  k: 16
+
+data:
+  psf_normalization: none
+  psf_crop: [135, 242, 262, 278]
+
+eval:
+  batch_size: 1
+  num_workers: 2
+  metrics: [psnr, ssim, lpips]
+
+loss:
+  image: 0.8
+  measurement: 0.0
+  iso: 0.1
+  psf: 0.1

@@ -16,7 +16,12 @@ from data.psf import build_psf
 from losses.basic import ReconstructionLoss
 from metrics.basic import build_metrics, metric_values, normalize_images
 from models import build_model
-from utils.checkpoint import load_checkpoint, load_model_state_compat, save_checkpoint
+from utils.checkpoint import (
+    extract_state_dict,
+    load_checkpoint,
+    load_model_state_compat,
+    save_checkpoint,
+)
 from utils.seed import seed_everything
 
 
@@ -144,8 +149,13 @@ def _setup(config: Dict[str, Any], checkpoint_path: str | None = None):
     seed_everything(config["seed"], deterministic=config["deterministic"])
     device = _select_device(config["device"])
     checkpoint = load_checkpoint(checkpoint_path, "cpu") if checkpoint_path else None
+    psf = None
+    if checkpoint is not None and config["model"].get("name", "ifin").lower() == "ifin":
+        psf = extract_state_dict(checkpoint).get("psf")
+    if psf is None:
+        psf = build_psf(config)
     model = build_model(
-        config, build_psf(config).to(device), device=device, checkpoint=checkpoint
+        config, psf.to(device), device=device, checkpoint=checkpoint
     )
     if checkpoint:
         load_model_state_compat(model, checkpoint, strict=True)

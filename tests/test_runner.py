@@ -52,6 +52,68 @@ def test_checkpoint_field_size_must_match_selected_k():
         build_ifin_model(config, torch.rand(1, 1, 16, 16), checkpoint)
 
 
+def test_pretrained_diffusercam_config_matches_checkpoint():
+    config = load_config(str(PROJECT_ROOT / "configs/diffusercam_k16.yaml"))
+    assert config["model"]["k"] == 16
+    assert config["model"]["depth"] == 3
+    assert config["model"]["dim"] == 32
+    assert (config["model"]["height"], config["model"]["width"]) == (270, 480)
+    assert config["data"]["psf_crop"] == [135, 242, 262, 278]
+    assert config["eval"]["batch_size"] == 1
+    assert config["eval"]["normalize"] == "none"
+    assert config["eval"]["metric_view"] == "crop"
+    assert load_config(str(PROJECT_ROOT / "configs/diffusercam.yaml"))["model"]["k"] == 1
+
+
+def test_checkpoint_setup_preserves_psf_without_calibration_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    config = load_config(
+        str(PROJECT_ROOT / "configs/smoke.yaml"), {"model": {"dim": 4, "k": 16}}
+    )
+    psf = torch.rand(1, 16, 11, 13)
+    original = build_ifin_model(config, psf, {"model_state_dict": {"psf": psf}}).eval()
+    names = {"initial_iso": "WieNerH", "ifib": "caw_block", "iso": "W", "fso": "C"}
+    legacy = {
+        "module." + ".".join(names.get(part, part) for part in key.split(".")): value
+        for key, value in original.state_dict().items()
+    }
+    path = tmp_path / "IFIN_DiffuserCam_k16_20251101_best.pth"
+    save_checkpoint(path, {"model_state_dict": legacy})
+
+    def unexpected_calibration(_config):
+        pytest.fail("Stored checkpoint PSFs must not require a calibration file")
+
+    monkeypatch.setattr(runner, "build_psf", unexpected_calibration)
+    device, restored, _ = runner._setup(config, str(path))
+    assert device == torch.device("cpu")
+    assert tuple(restored.psf.shape) == (1, 16, 11, 13)
+    assert torch.equal(restored.psf, psf)
+    sample = torch.rand(1, 3, 32, 32)
+    with torch.no_grad():
+        assert torch.equal(restored.eval()(sample)[0], original(sample)[0])
+
+
+def test_baseline_checkpoint_still_uses_calibration(
+    monkeypatch: pytest.MonkeyPatch
+):
+    config = {"seed": 7, "deterministic": True, "device": "cpu", "model": {"name": "wiener"}}
+    measured = torch.ones(1, 1, 2, 2)
+    checkpoint = {"model_state_dict": {"psf": torch.zeros_like(measured)}}
+    observed = []
+    monkeypatch.setattr(runner, "load_checkpoint", lambda *_args: checkpoint)
+    monkeypatch.setattr(runner, "build_psf", lambda _config: measured)
+
+    def capture_model(_config, psf, **_kwargs):
+        observed.append(psf)
+        return TinyIFIN()
+
+    monkeypatch.setattr(runner, "build_model", capture_model)
+    monkeypatch.setattr(runner, "load_model_state_compat", lambda *_args, **_kwargs: None)
+    runner._setup(config, "baseline.pth")
+    assert len(observed) == 1 and torch.equal(observed[0], measured)
+
+
 def test_yaml_measurement_and_iso_loss_weights_are_applied():
     criterion = ReconstructionLoss({"loss": {"measurement": 2.0, "iso": 3.0}})
     zero = torch.zeros(1, 1, 2, 2)

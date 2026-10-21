@@ -25,6 +25,9 @@ htmlcov/
 outputs/
 external_baselines/
 wandb/
+*.pth
+*.pt
+*.ckpt
 
 # Build artifacts
 build/

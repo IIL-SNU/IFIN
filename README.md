@@ -148,7 +148,8 @@ pip install -r requirements.txt
 IFIN has one implementation, `src/models/ifin.py`, with paper names
 `IFINNet`, `IFIB`, `FSO`, `ISO`, and `RB`. Dataset and historical
 architecture differences are configured in YAML, not separate model files.
-All IFIN configurations default to `k=1`. Select the number of PSF-field
+Dataset configurations default to `k=1`; the pretrained DiffuserCam preset
+uses `k=16`. Select the number of PSF-field
 kernels with `model.k` in YAML or `--k 1`, `--k 4`, `--k 9`, or `--k 16`.
 The paper uses k=1/4/9/16 for the DiffuserCam ablation and k=9 for WiderCam
 and MultiWienerNet. This IFIN setting does not change baseline architectures.
@@ -175,6 +176,19 @@ legacy CAW state-key renaming. New training saves best/last checkpoints, both
 optimizer states when applicable, scheduler states, and the configuration.
 When supplying a checkpoint, select its original k with `--k`; learned PSF
 tensors are never resized to fit a different field size.
+
+### Pretrained DiffuserCam
+
+Use `IFIN_DiffuserCam_k16_20251101_best.pth` with
+`configs/diffusercam_k16.yaml`. The preset selects k=16, depth 3, width 32,
+and 270 x 480 RGB measurements. Its learned 262 x 278 PSF support is loaded
+directly from the checkpoint; a separate calibration PSF is not required.
+File verification and dataset details are in [Pretrained Checkpoints](docs/checkpoints.md).
+
+```bash
+python eval.py --config configs/diffusercam_k16.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/IFIN_DiffuserCam_k16_20251101_best.pth --output outputs/diffusercam_metrics.json
+python infer.py --config configs/diffusercam_k16.yaml --checkpoint /path/to/IFIN_DiffuserCam_k16_20251101_best.pth --input /path/to/measurement.npy --output-dir outputs/diffusercam
+```
 
 For a short test without external data or perceptual weights:
 
