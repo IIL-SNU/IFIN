@@ -20,7 +20,8 @@ def _remap_legacy_ifin_keys(
     for key, value in state_dict.items():
         parts = key.split(".")
         parts = [
-            {"WieNerH": "initial_iso", "caw_block": "ifib", "W": "iso", "C": "fso"}.get(
+            {"WieNerH": "initial_iso", "ISO_0": "initial_iso",
+             "caw_block": "ifib", "ifi_block": "ifib", "W": "iso", "C": "fso"}.get(
                 part, part
             )
             for part in parts

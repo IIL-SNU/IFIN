@@ -77,6 +77,19 @@ def test_pretrained_widercam_config_preserves_research_settings():
     assert load_config(str(PROJECT_ROOT / "configs/widercam.yaml"))["model"]["k"] == 1
 
 
+@pytest.mark.parametrize("k", [1, 4])
+def test_pretrained_widercam_ablation_preserves_historical_refinement(k):
+    config = load_config(str(PROJECT_ROOT / f"configs/widercam_k{k}.yaml"))
+    assert config["model"]["k"] == k
+    assert config["model"]["refinement_block"] == "rb_convg"
+    assert config["model"]["seed_blocks"] == "rb"
+    assert config["data"]["psf_crop"] == [135, 240, 135, 135]
+    assert config["eval"]["batch_size"] == 1
+    assert config["eval"]["normalize"] == "clip_max"
+    assert config["eval"]["num_samples"] is None
+    assert "refinement_block" not in load_config(str(PROJECT_ROOT / "configs/widercam_k9.yaml"))["model"]
+
+
 @pytest.mark.parametrize("k", [4, 9])
 def test_pretrained_multiwienernet_config_preserves_historical_architecture(k):
     config = load_config(str(PROJECT_ROOT / f"configs/multiwienernet_k{k}.yaml"))
@@ -92,15 +105,18 @@ def test_pretrained_multiwienernet_config_preserves_historical_architecture(k):
     assert load_config(str(PROJECT_ROOT / "configs/multiwienernet.yaml"))["model"]["k"] == 1
 
 
+@pytest.mark.parametrize("names", [
+    {"initial_iso": "WieNerH", "ifib": "caw_block", "iso": "W", "fso": "C"},
+    {"initial_iso": "ISO_0", "ifib": "ifi_block"},
+])
 def test_checkpoint_setup_preserves_psf_without_calibration_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, names: dict[str, str]
 ):
     config = load_config(
         str(PROJECT_ROOT / "configs/smoke.yaml"), {"model": {"dim": 4, "k": 16}}
     )
     psf = torch.rand(1, 16, 11, 13)
     original = build_ifin_model(config, psf, {"model_state_dict": {"psf": psf}}).eval()
-    names = {"initial_iso": "WieNerH", "ifib": "caw_block", "iso": "W", "fso": "C"}
     legacy = {
         "module." + ".".join(names.get(part, part) for part in key.split(".")): value
         for key, value in original.state_dict().items()

@@ -1,0 +1,13 @@
+inherits: widercam.yaml
+
+model:
+  k: 1
+  refinement_block: rb_convg
+
+data:
+  psf_crop: [135, 240, 135, 135]
+
+eval:
+  batch_size: 1
+  num_workers: 2
+  metrics: [psnr, ssim, lpips]

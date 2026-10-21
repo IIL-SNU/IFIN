@@ -1,0 +1,4 @@
+inherits: widercam_k1.yaml
+
+model:
+  k: 4

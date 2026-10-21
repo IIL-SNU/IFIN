@@ -117,6 +117,46 @@ class RB(nn.Module):
         x = self.norm2(x)
         x = self.act(x)
         return x
+class RBConvG(nn.Module):
+    def __init__(self, in_channels, out_channels, num_groups=None):
+        super().__init__()
+        self.convg1 = ConvG(in_channels, out_channels)
+        self.convg2 = ConvG(out_channels, out_channels)
+        self.norm1 = nn.GroupNorm(1, out_channels)
+        self.pw1 = nn.Conv2d(out_channels, out_channels, 1)
+        self.dw = nn.Conv2d(out_channels, out_channels, 3, padding=1, groups=out_channels)
+        self.pw2 = nn.Conv2d(out_channels, out_channels * 2, 1)
+        self.sg1 = SimpleGate()
+        self.se = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(out_channels, out_channels, 1),
+        )
+        self.conv3 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
+        self.beta = nn.Parameter(torch.zeros(1, out_channels, 1, 1))
+        self.norm2 = nn.GroupNorm(1, out_channels)
+        self.pw3 = nn.Conv2d(out_channels, out_channels * 2, 1)
+        self.sg2 = SimpleGate()
+        self.pw4 = nn.Conv2d(out_channels, out_channels, 1)
+        self.gamma = nn.Parameter(torch.zeros(1, out_channels, 1, 1))
+
+    def forward(self, x):
+        x = self.convg1(x)
+        y = self.norm1(x)
+        y = self.pw1(y)
+        y = self.dw(y)
+        y = self.pw2(y)
+        y = self.sg1(y)
+        y = y * self.se(x)
+        y = self.conv3(y)
+        y = x + self.beta * y
+        z = self.norm2(y)
+        z = self.pw3(z)
+        z = self.sg2(z)
+        z = self.pw4(z)
+        z = y + self.gamma * z
+        return self.convg2(z)
+
+
 class ISO(nn.Module):
     """
     'W' 클래스를 기반으로, WieNer_SV(멀티 커널, k 차원, kernel_weights 등) 기능을 결합하되
@@ -364,7 +404,8 @@ class DownsampleIFIB(nn.Module):
 class IFINNet(nn.Module):
     def __init__(self, in_channels, out_channels, psf, height=270, width=480, dim=32, depth=3, block_cls=RB, exchange=0.2, k=1, repeat=True, random=False,
                  seed_blocks="rb", bottleneck=False, residual=False,
-                 upsample="bicubic", regularizer_activation="relu"):
+                 upsample="bicubic", regularizer_activation="relu",
+                 refinement_block="rb"):
         super().__init__()
         if depth < 2:
             raise ValueError("IFIN requires depth >= 2")
@@ -376,6 +417,10 @@ class IFINNet(nn.Module):
             raise ValueError("upsample must be bicubic or bilinear")
         if regularizer_activation not in {"relu", "sigmoid"}:
             raise ValueError("regularizer_activation must be relu or sigmoid")
+        if refinement_block not in {"rb", "rb_convg"}:
+            raise ValueError("refinement_block must be rb or rb_convg")
+        if refinement_block == "rb_convg":
+            block_cls = RBConvG
         self.height, self.width = height, width
         self.psf = psf
         _, _, height_p, width_p = psf.size()

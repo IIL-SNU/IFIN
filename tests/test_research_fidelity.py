@@ -16,13 +16,15 @@ from utils.checkpoint import load_model_state_compat
 from utils.operators import gaus_t, generate_roi
 
 
-@pytest.mark.parametrize("source,options", [
-    ("FIXNet.py", {}),
+@pytest.mark.parametrize("source,options,reference_options", [
+    ("FIXNet.py", {}, {}),
+    ("FIXNet.py", {"refinement_block": "rb_convg"}, {"block_cls": "RB"}),
     ("CAW6_buffer.py", dict(seed_blocks="conv", bottleneck=True,
                            residual=True, upsample="bilinear",
-                           regularizer_activation="sigmoid")),
+                           regularizer_activation="sigmoid"), {}),
 ])
-def test_research_forward_and_gradient_fidelity(source, options):
+@pytest.mark.parametrize("k", [1, 4])
+def test_research_forward_and_gradient_fidelity(source, options, reference_options, k):
     root = os.environ.get("IFIN_RESEARCH_MODELS")
     if not root:
         pytest.skip("Set IFIN_RESEARCH_MODELS to compare original research sources")
@@ -33,12 +35,15 @@ def test_research_forward_and_gradient_fidelity(source, options):
     module.__dict__.update(torch=torch, nn=nn, F=F, inspect=inspect,
                            gaus_t=gaus_t, generate_roi=generate_roi)
     exec(compile(tree, source, "exec"), module.__dict__)
+    reference_options = {
+        name: getattr(module, value) for name, value in reference_options.items()
+    }
     torch.manual_seed(31)
-    psf = torch.rand(1, 1, 16, 16)
+    psf = torch.rand(1, 1, 11, 13)
     reference = module.CAWNet(3, 3, psf.clone(), height=32, width=32,
-                             dim=4, depth=2, k=4).eval()
+                             dim=4, depth=2, k=k, **reference_options).eval()
     model = IFINNet(3, 3, psf.clone(), height=32, width=32,
-                    dim=4, depth=2, k=4, **options).eval()
+                    dim=4, depth=2, k=k, **options).eval()
     load_model_state_compat(model, {"model_state_dict": reference.state_dict()})
     x = torch.rand(1, 3, 32, 32, requires_grad=True)
     y = x.detach().clone().requires_grad_(True)
