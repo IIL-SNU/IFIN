@@ -187,7 +187,7 @@ and follow the [restoration and evaluation guide](docs/checkpoints.md).
 | 16 | `IFIN_DiffuserCam_k16_20251101_best.pth` | `configs/diffusercam_k16.yaml` |
 | 1 | `IFIN_DiffuserCam_k1_20260507_best.pth` | `configs/diffusercam.yaml` |
 
-The k=16 download has seven parts; k=1 is a complete `.pth` file. Download
+The k=16 download has 34 parts and k=1 has three parts (at most 96 MiB each). Download
 `IFIN_checkpoints.json` alongside the weights, then restore and verify them:
 
 ```bash

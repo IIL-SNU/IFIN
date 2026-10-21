@@ -10,9 +10,9 @@ Weight files are not committed to Git.
 | 16 | `IFIN_DiffuserCam_k16_20251101_best.pth` | 3,381,734,300 bytes | `configs/diffusercam_k16.yaml` |
 | 1 | `IFIN_DiffuserCam_k1_20260507_best.pth` | 218,858,833 bytes | `configs/diffusercam.yaml` |
 
-For k=16, download all seven files ending in `.pth.part001` through
-`.pth.part007`. The first six parts are 480 MiB each. Keep their original names.
-For k=1, download the complete `.pth` file; no concatenation is needed.
+For k=16, download all 34 files ending in `.pth.part001` through
+`.pth.part034`. For k=1, download all three files ending in `.pth.part001`
+through `.pth.part003`. Parts are at most 96 MiB each. Keep their original names.
 Also download `IFIN_checkpoints.json`. The folder includes a standalone
 `restore_checkpoint.py` and `README_RESTORE.md` for use without cloning GitHub.
 
@@ -35,9 +35,9 @@ Or, in the downloaded folder, using the included standalone script:
 python restore_checkpoint.py --manifest IFIN_checkpoints.json
 ```
 
-This restores k=16 into its original `.pth` file and verifies the complete
-k=1 file. To restore only k=16, append `--checkpoint diffusercam_k16`.
-To verify only k=1, append `--checkpoint diffusercam_k1`.
+This restores both checkpoints into their original `.pth` files.
+To restore only k=16, append `--checkpoint diffusercam_k16`.
+To restore only k=1, append `--checkpoint diffusercam_k1`.
 Use `--output-dir /path/to/checkpoints` to write to a different directory.
 On Windows, `py` can be used instead of `python`.
 
