@@ -179,14 +179,27 @@ tensors are never resized to fit a different field size.
 
 ### Pretrained DiffuserCam
 
-Use `IFIN_DiffuserCam_k16_20251101_best.pth` with
-`configs/diffusercam_k16.yaml`. The preset selects k=16, depth 3, width 32,
-and 270 x 480 RGB measurements. Its learned 262 x 278 PSF support is loaded
-directly from the checkpoint; a separate calibration PSF is not required.
-File verification and dataset details are in [Pretrained Checkpoints](docs/checkpoints.md).
+[Download weights (Google Drive)](https://drive.google.com/drive/folders/1UZiyWqdqK75IQwusnfYNoKRT-fOa0neX)
+and follow the [restoration and evaluation guide](docs/checkpoints.md).
+
+| k | Checkpoint | Configuration |
+| --- | --- | --- |
+| 16 | `IFIN_DiffuserCam_k16_20251101_best.pth` | `configs/diffusercam_k16.yaml` |
+| 1 | `IFIN_DiffuserCam_k1_20260507_best.pth` | `configs/diffusercam.yaml` |
+
+The k=16 download has seven parts; k=1 is a complete `.pth` file. Download
+`IFIN_checkpoints.json` alongside the weights, then restore and verify them:
+
+```bash
+python scripts/restore_checkpoint.py --manifest /path/to/downloads/IFIN_checkpoints.json
+```
+
+Both checkpoints use depth 3, width 32, and 270 x 480 RGB measurements.
+Learned PSFs are loaded without resizing; a separate calibration PSF is not required.
 
 ```bash
 python eval.py --config configs/diffusercam_k16.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/IFIN_DiffuserCam_k16_20251101_best.pth --output outputs/diffusercam_metrics.json
+python eval.py --config configs/diffusercam.yaml --data-root /path/to/DiffuserCam --checkpoint /path/to/IFIN_DiffuserCam_k1_20260507_best.pth --output outputs/diffusercam_k1_metrics.json
 python infer.py --config configs/diffusercam_k16.yaml --checkpoint /path/to/IFIN_DiffuserCam_k16_20251101_best.pth --input /path/to/measurement.npy --output-dir outputs/diffusercam
 ```
 
@@ -219,7 +232,7 @@ known notebook inconsistencies are documented in [Baseline Implementations](docs
 and [Research Code Provenance](docs/code_provenance.md).
 See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for upstream licenses.
 
-Checkpoints are optional external inputs and are not included in this release.
+Checkpoint files are distributed separately from this Git repository.
 Without trained weights, evaluation is a pipeline check, not a paper result.
 
 ## Dataset Layout
