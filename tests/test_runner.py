@@ -65,6 +65,18 @@ def test_pretrained_diffusercam_config_matches_checkpoint():
     assert load_config(str(PROJECT_ROOT / "configs/diffusercam.yaml"))["model"]["k"] == 1
 
 
+def test_pretrained_widercam_config_preserves_research_settings():
+    config = load_config(str(PROJECT_ROOT / "configs/widercam_k9.yaml"))
+    assert config["model"]["k"] == 9
+    assert config["model"]["in_channels"] == config["model"]["out_channels"] == 3
+    assert (config["model"]["height"], config["model"]["width"]) == (270, 480)
+    assert config["data"]["psf_crop"] == [133, 236, 130, 133]
+    assert config["eval"]["normalize"] == "clip_max"
+    assert config["eval"]["metric_view"] == "dewarped"
+    assert config["eval"]["num_samples"] is None
+    assert load_config(str(PROJECT_ROOT / "configs/widercam.yaml"))["model"]["k"] == 1
+
+
 def test_checkpoint_setup_preserves_psf_without_calibration_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

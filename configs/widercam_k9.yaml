@@ -1,0 +1,9 @@
+inherits: widercam.yaml
+
+model:
+  k: 9
+
+eval:
+  batch_size: 1
+  num_workers: 2
+  metrics: [psnr, ssim, lpips]
