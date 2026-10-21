@@ -77,9 +77,10 @@ def test_pretrained_widercam_config_preserves_research_settings():
     assert load_config(str(PROJECT_ROOT / "configs/widercam.yaml"))["model"]["k"] == 1
 
 
-def test_pretrained_multiwienernet_config_preserves_historical_architecture():
-    config = load_config(str(PROJECT_ROOT / "configs/multiwienernet_k4.yaml"))
-    assert config["model"]["k"] == 4
+@pytest.mark.parametrize("k", [4, 9])
+def test_pretrained_multiwienernet_config_preserves_historical_architecture(k):
+    config = load_config(str(PROJECT_ROOT / f"configs/multiwienernet_k{k}.yaml"))
+    assert config["model"]["k"] == k
     assert config["model"]["in_channels"] == config["model"]["out_channels"] == 1
     assert (config["model"]["height"], config["model"]["width"]) == (224, 320)
     assert config["model"]["seed_blocks"] == "conv"
