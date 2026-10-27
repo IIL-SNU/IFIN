@@ -293,6 +293,15 @@ We introduce **WiderCam**, a wide-field lensless reconstruction benchmark captur
 
 **Dataset:** [Dataset page](https://iilab.io/WiderCam)
 
+## License
+
+Original IFIN code and its accompanying code documentation, including the
+author-written baseline implementations, are licensed under the [MIT License](LICENSE),
+Copyright (c) 2026 Donggeon Bae. Third-party code retains its upstream terms;
+see [Third-party notices](THIRD_PARTY_NOTICES.md).
+
+Datasets, checkpoints, and other media are separate from this software license.
+
 ## Citation
 
 ```bibtex

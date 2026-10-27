@@ -1,6 +1,14 @@
 # Third-party notices
 
-The tracked files under `src/models/baselines/` were mechanically derived from research model copies, with imports localized and unused experiment dependencies removed. Mathematical operations and checkpoint-facing module attributes were retained. DeepLIR and MoDL copies are kept only in the gitignored local `external_baselines/` directory and are not part of the tracked source package.
+The [project MIT license](LICENSE), Copyright (c) 2026 Donggeon Bae, covers
+original IFIN project code and its accompanying code documentation. It does
+not relicense third-party baseline implementations under
+`src/models/baselines/`, dependencies, or externally supplied source. Existing
+upstream copyrights, license conditions, and notices continue to apply.
+Datasets, weights, papers, media, and out-of-scope local experiments are not
+covered by the project software license.
+
+The tracked files under `src/models/baselines/` include author-written implementations and third-party adaptations. Research model copies were integrated with imports localized and unused experiment dependencies removed; that mechanical integration does not by itself establish third-party authorship. Mathematical operations and checkpoint-facing module attributes were retained. DeepLIR and MoDL copies are kept only in the gitignored local `external_baselines/` directory and are not part of the tracked source package.
 
 ## NAFNet
 
@@ -34,21 +42,32 @@ adaptations; those differences do not make the original portions independently
 licensed code. LayerNorm helpers in `_blocks.py` correspond to the NAFNet source
 and retain its separately included notice.
 
-These upstream license findings identify the referenced projects and commits. They do not by themselves prove that every local research copy is identical to, derived solely from, or redistributable under the corresponding upstream license.
+These upstream license findings identify the referenced projects and commits for third-party portions. They do not replace the project MIT license for independently author-written portions or relicense third-party code under the project copyright.
 
-## Research baseline copies
+## Author-written baseline implementations
 
-The following derived modules still lack a complete upstream correspondence or
-author-origin record after the bounded source audit:
+Donggeon Bae explicitly confirmed authorship of `src/models/baselines/admm.py`,
+`src/models/baselines/wiener.py`, `src/models/baselines/_utils.py`, and the
+previously unverified local portions of `src/models/baselines/unet.py`.
+Those original implementations and additions are covered by the project
+[MIT license](LICENSE), Copyright (c) 2026 Donggeon Bae. The previous
+source-origin questions for these portions are resolved by that confirmation;
+they are not pending redistribution-permission blockers.
 
-- `admm.py`
-- local `external_baselines/deeplir.py` (the audited upstream repository has no license file)
-- local `external_baselines/modl.py` (includes LenslessPiCam-derived code under GPLv3 at the matching source revision; complete local-wrapper provenance remains unresolved)
-- `unet.py`
-- `wiener.py`
-- `_utils.py`
+The confirmation does not claim authorship of the known third-party code
+identified elsewhere in this notice. In particular, the LenslessLearning-derived
+stack helpers used by `unet.py` and the separately identified NAFNet, LensNet,
+and MultiWienerNet portions retain their upstream terms and notices.
 
-Their inclusion here is provenance documentation, not a declaration that they are relicensed under any project-wide license. A local file without a license header does not establish its license status. DeepLIR and MoDL must remain untracked unless redistribution authorization is established; the remaining tracked modules above require source or author-origin confirmation before public release. This source audit does not establish a project-wide license.
+## External baseline inputs
+
+The local gitignored `external_baselines/deeplir.py` and `modl.py` are not part
+of the tracked source package or this authorship confirmation. The existing
+audit found no license file in the audited DeepLIR upstream and identified
+LenslessPiCam-derived GPLv3 code in MoDL, with complete local-wrapper provenance
+unresolved. Keep these external inputs untracked unless redistribution
+permission is established. This does not restrict the separately licensed
+original IFIN implementations above.
 
 ## MoDL Source Audit
 
@@ -76,3 +95,63 @@ Relevant method references already cited by the project are:
 - MWDNs: Optics Express, DOI `10.1364/OE.501970`
 - LensNet: arXiv `2505.01755`
 - MoDL: IEEE Transactions on Computational Imaging, DOI `10.1109/TCI.2025.3539448`
+
+## Baseline source comparison (2026-10-27)
+
+The scoped MIT grant for original IFIN code is based on the project owner's
+confirmation of ownership and the specific authorship statement above.
+Scientific methods such as ADMM, Wiener filtering,
+and U-Net architectures may be reimplemented; a method name or paper citation
+alone does not establish that a particular source file was independently
+written or that copied source is licensed for redistribution.
+
+A comparison of the tracked baseline files with the pinned upstream sources
+above found matching source structure, including complete classes or methods:
+
+- `nafnet.py`: `NAFBlock` matches the pinned NAFNet source. Existing NAFNet and
+  BasicSR notices and license texts remain applicable.
+- `lensnet.py`: multiple blocks match the pinned LensNet source, including
+  `NAFBlock`, LayerNorm helpers, and decoder blocks. The NAFBlock and LayerNorm
+  bodies also match NAFNet/BasicSR; preserve both sets of existing notices.
+- `leadmm_unet.py`: complete `ConvBnRelu2d`, `StackEncoder`, `StackDecoder`, and
+  `UNet_small` classes match the pinned LenslessLearning U-Net source.
+- `multiwiener.py`: Wiener constructors/forward methods and ensemble
+  constructors match the pinned MultiWienerNet source.
+- `updn.py`: camera/operator blocks, its U-Net, and primal-dual blocks match
+  the pinned LensNet `UPDN.py` source. `mwdns.py` retains that repository's
+  multiscale PSF-encoder/decoder structure with local PSF injection, channel
+  options, and Wiener helper changes. This is evidence of adaptation, not
+  merely a citation to a method.
+- `_blocks.py`: shared portions map to the pinned LensNet, LenslessLearning,
+  and NAFNet sources as recorded above.
+- `unet.py`: the encoder/decoder layout shares the LenslessLearning U-Net
+  architecture and uses the separately attributed stack helpers in `_blocks.py`.
+  Architecture correspondence alone does not establish copied source. The
+  author confirmed the previously unverified local implementation/additions,
+  including FiLM, padding, Wiener, and ensemble portions; those original
+  portions are MIT, while the known third-party helpers retain their terms.
+
+The bounded comparison found no concrete copied-source match contradicting the
+confirmed authorship of `admm.py`, `wiener.py`, `_utils.py`, or the previously
+unverified additions in `unet.py`. Historical research filenames such as
+`models/ADMM.py` and `models/WieNerDeconv.py` are not independent evidence of
+third-party authorship. No exclusion of these author-written implementations
+from the IFIN release is required by this review. No source file or experiment
+was removed or moved.
+
+## Evaluation dependencies and downloaded assets
+
+`requirements.txt` includes unpinned `pyiqa`; `src/metrics/basic.py` uses it for
+configured metrics other than PSNR, including SSIM and LPIPS. As checked on
+2026-10-27, the [upstream license](https://github.com/chaofengc/IQA-PyTorch/blob/main/LICENSE)
+is PolyForm Noncommercial License 1.0.0. This finding does not determine which
+version or license was installed for earlier experiments. Check the exact
+version's terms before use or redistribution, especially for commercial use.
+This dependency condition does not change the MIT license on original IFIN code.
+
+`src/losses/basic.py` optionally uses `lpips` with a VGG backbone. The
+[LPIPS source license](https://github.com/richzhang/PerceptualSimilarity/blob/master/LICENSE)
+is BSD-2-Clause; that finding does not establish rights to every downloaded
+backbone or metric weight. All dependencies and downloaded model assets retain
+their respective terms. The requirements file is not a lockfile or a complete
+license inventory of installed and transitive packages.
